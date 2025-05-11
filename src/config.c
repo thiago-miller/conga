@@ -108,7 +108,7 @@ config_apply_args (Config *c, int argc, char **argv)
 	// progname for getopt
 	argv[0] = PROGNAME;
 
-	while ((o = getopt_long (argc, argv, "hr:c:s:d:p:", opt, &option_index)) >= 0)
+	while ((o = getopt_long (argc, argv, "hr:c:s:t:p:", opt, &option_index)) >= 0)
 		{
 			switch (o)
 				{
@@ -132,7 +132,7 @@ config_apply_args (Config *c, int argc, char **argv)
 						c->seed = atoi (optarg);
 						break;
 					}
-				case 'd':
+				case 't':
 					{
 						c->delay = atoi (optarg);
 						break;
