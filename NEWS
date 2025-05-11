@@ -1,3 +1,14 @@
+Version 0.2.0
+
+* Modularize the 'conga.c' script:
+  - wrapper: Wrap error-prone functions;
+  - utils:   Miscellaneous functions;
+  - config:  Parsing command line arguments, settings;
+  - grid:    Manage grid creation and neighbors detection;
+  - cell:    Game of Life Logic (initialization and evolution);
+  - render:  Visual printout of the grid on the terminal (with ANSI codes);
+  - conga:   Main game control: start, loop, end.
+
 Version 0.1.0
 
 * Initial version with a working PoC.
