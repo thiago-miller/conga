@@ -47,4 +47,4 @@ typedef struct
 
 Grid * grid_new             (int rows, int cols);
 void   grid_free            (Grid *g);
-int    grid_count_neighbors (const Grid *g, int row, int col);
+int    grid_count_neighbors (const Grid *g, int i, int j);

@@ -5,8 +5,8 @@
 
 #define NEIGHBORS 8
 
-static int delta_i[] = {-1, -1, -1,  0, 0, +1, +1, +1};
-static int delta_j[] = {-1,  0, +1, -1, +1, -1, 0, +1};
+static const int delta_i[] = {-1, -1, -1,  0, 0, +1, +1, +1};
+static const int delta_j[] = {-1,  0, +1, -1, +1, -1, 0, +1};
 
 Grid *
 grid_new (int rows, int cols)
@@ -38,18 +38,18 @@ grid_free (Grid *g)
 }
 
 int
-grid_count_neighbors (const Grid *g, int row, int col)
+grid_count_neighbors (const Grid *g, int i, int j)
 {
 	assert (g != NULL);
-	assert (GRID_RANGE_CHECK (g, row, col));
+	assert (GRID_RANGE_CHECK (g, i, j));
 
 	int ni = 0, nj = 0;
 	int live_neighbors = 0;
 
 	for (int k = 0; k < NEIGHBORS; k++)
 		{
-			ni = (row + delta_i[k] + g->rows) % g->rows;
-			nj = (col + delta_j[k] + g->cols) % g->cols;
+			ni = (i + delta_i[k] + g->rows) % g->rows;
+			nj = (j + delta_j[k] + g->cols) % g->cols;
 
 			if (GRID_CUR_GET (g, ni, nj))
 				live_neighbors++;

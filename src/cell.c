@@ -36,27 +36,22 @@ cell_set_first_generation (Grid *g, float live_percent)
 }
 
 void
-cell_step_generation (Grid *g)
+cell_step_generation (Grid *g, Rule *r)
 {
 	assert (g != NULL);
 
 	int neighbors = 0;
 	int alive = 0;
 
-	for (int r = 0; r < g->rows; r++)
+	for (int i = 0; i < g->rows; i++)
 		{
-			for (int c = 0; c < g->cols; c++)
+			for (int j = 0; j < g->cols; j++)
 				{
-					alive = GRID_CUR_GET (g, r, c);
+					alive     = GRID_CUR_GET (g, i, j);
+					neighbors = grid_count_neighbors (g, i, j);
 
-					neighbors = grid_count_neighbors (g, r, c);
-
-					if (alive && (neighbors == 2 || neighbors == 3))
-						GRID_NEXT_SET (g, r, c, 1);
-					else if (!alive && neighbors == 3)
-						GRID_NEXT_SET (g, r, c, 1);
-					else
-						GRID_NEXT_SET (g, r, c, 0);
+					GRID_NEXT_SET (g, i, j,
+							rule_next_state (r, alive, neighbors));
 				}
 		}
 

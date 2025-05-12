@@ -8,8 +8,10 @@
 #include "grid.h"
 #include "cell.h"
 #include "render.h"
+#include "rule.h"
 
 static Grid *grid = NULL;
+static Rule *rule = NULL;
 static int done = 0;
 static int delay = 1000000;
 
@@ -33,6 +35,8 @@ conga_init (const Config *c)
 	grid = grid_new (c->rows, c->cols);
 	cell_set_first_generation (grid, c->live_percent);
 
+	rule = rule_new (c->rule);
+
 	delay = c->delay;
 
 	render_init ();
@@ -44,7 +48,7 @@ conga_run (void)
 	while (!done)
 		{
 			render_draw (grid);
-			cell_step_generation (grid);
+			cell_step_generation (grid, rule);
 			usleep (delay);
 		}
 }

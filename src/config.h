@@ -7,6 +7,7 @@ typedef struct
 	int   cols;
 	int   delay;
 	float live_percent;
+	const char *rule;
 } Config;
 
 void     config_setup_environment (void);

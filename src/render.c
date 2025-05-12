@@ -11,7 +11,7 @@
 #define DEAD         "\u2B1B"
 #define ALIVE        "\u2B1C"
 
-static char *status[] = {DEAD, ALIVE};
+static const char *const status[] = {DEAD, ALIVE};
 
 void
 render_init (void)
@@ -34,10 +34,10 @@ render_draw (const Grid *g)
 
 	printf (CURSOR_UP);
 
-	for (int r = 0; r < g->rows; r++)
+	for (int i = 0; i < g->rows; i++)
 		{
-			for (int c = 0; c < g->cols; c++)
-				printf (status[GRID_CUR_GET (g, r, c)]);
+			for (int j = 0; j < g->cols; j++)
+				printf (status[GRID_CUR_GET (g, i, j)]);
 
 			printf ("\n");
 		}
