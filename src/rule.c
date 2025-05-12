@@ -18,18 +18,35 @@ struct _Rule
 
 const RuleAlias rule_aliases[] =
 {
-	{"anneal",             "B4678S35678"  },
-	{"conway",             "B3S23"        },
-	{"day_and_night",      "B3678S34678"  },
-	{"highlife",           "B36S23"       },
-	{"life34",             "B34S34"       },
-	{"life_without_death", "B3S012345678" },
-	{"maze",               "B3S12345"     },
-	{"mazectric",          "B3S1234"      },
-	{"replicator",         "B1357S1357"   },
-	{"seeds",              "B2S"          },
-	{NULL,                 NULL           }
+	{"anneal",             "B4678/S35678"  },
+	{"conway",             "B3/S23"        },
+	{"day_and_night",      "B3678/S34678"  },
+	{"highlife",           "B36/S23"       },
+	{"life34",             "B34/S34"       },
+	{"life_without_death", "B3/S012345678" },
+	{"maze",               "B3/S12345"     },
+	{"mazectric",          "B3/S1234"      },
+	{"replicator",         "B1357/S1357"   },
+	{"seeds",              "B2/S"          },
+	{NULL,                 NULL            }
 };
+
+static const char *
+rule_get_rule_from_alias (const char *alias)
+{
+	const char *rule = NULL;
+
+	for (const RuleAlias *a = rule_aliases; a->name != NULL; a++)
+		{
+			if (strcasecmp (alias, a->name) == 0)
+				{
+					rule = a->rule;
+					break;
+				}
+		}
+
+	return rule;
+}
 
 static int
 rule_parse_into_table (RuleTable table, const char *str)
@@ -37,47 +54,73 @@ rule_parse_into_table (RuleTable table, const char *str)
 	if (str == NULL)
 		return 0;
 
-	for (const RuleAlias *a = rule_aliases; a->name; ++a)
-		{
-			if (strcasecmp (str, a->name) == 0)
-				{
-					str = a->rule;
-					break;
-				}
-		}
+	const char *rule = NULL;
+
+	if ((rule = rule_get_rule_from_alias (str)) == NULL)
+		rule = str;
 
 	memset (table, 0, sizeof (RuleTable));
 
-	// 0 = B (born), 1 = S (survive)
+	// -1 (init or /), 0 = B (born), 1 = S (survive)
 	int mode = -1;
-	int n = 0;
-	char c = 0;
 
-	for (const char *p = str; *p != '\0'; p++)
+	// avoid B/S duplication and ensure that they will be counted
+	int check[STATES] = {0};
+
+	char c = 0;
+	int  n = 0;
+
+	for (const char *p = rule; *p != '\0'; p++)
 		{
 			c = tolower (*p);
 
-			if (c == 'b')
-				mode = 0;
-			else if (c == 's')
-				mode = 1;
-			else if (isdigit (c))
+			switch (c)
 				{
-					// number without B/S before
-					if (mode == -1)
-						return 0;
+				case 'b' :
+					{
+						if (mode != -1 || check[0])
+							return 0;
+						mode = 0;
+						check[0] = 1;
+						break;
+					}
+				case 's' :
+					{
+						if (mode != -1 || check[1])
+							return 0;
+						mode = 1;
+						check[1] = 1;
+						break;
+					}
+				case '/' :
+					{
+						if (mode == -1)
+							return 0;
+						mode = -1;
+						break;
+					}
+				default  :
+					{
+						// number without B/S before
+						if (mode == -1)
+							return 0;
 
-					n = c - '0';
+						if (!isdigit (c))
+							return 0;
 
-					if (n < 0 || n > 8)
-						return 0;
+						n = c - '0';
 
-					table[mode][n] = 1;
+						if (!(n >= 0 && n < NEIGHBORS))
+							return 0;
+
+						table[mode][n] = 1;
+					}
 				}
-			// invalid char
-			else
-				return 0;
 		}
+
+	for (int i = 0; i < STATES; i++)
+		if (!check[i])
+			return 0;
 
 	return 1;
 }
