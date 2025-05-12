@@ -18,7 +18,7 @@ struct _Rule
 
 const RuleAlias rule_aliases[] =
 {
-	{"anneal",             "B4678/S35678" },
+	{"anneal",             "B4678S35678"  },
 	{"conway",             "B3S23"        },
 	{"day_and_night",      "B3678S34678"  },
 	{"highlife",           "B36S23"       },
