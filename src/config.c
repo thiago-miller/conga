@@ -157,7 +157,7 @@ config_validate_args (const Config *c)
 	if (c->delay <= 0)
 		error (1, 0, "--delay must be > 0");
 
-	if (c->live_percent <= 0.0 || c->live_percent >= 1.1)
+	if (c->live_percent <= 0.0 || c->live_percent >= 1.0)
 		error (1, 0, "--live-percent must be [0.0, 1.0[");
 
 	if (!rule_is_valid (c->rule))
