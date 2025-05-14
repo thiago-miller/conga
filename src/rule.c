@@ -18,14 +18,19 @@ struct _Rule
 
 const RuleAlias rule_aliases[] =
 {
+	{"2x2",                "B36/S125"      },
 	{"anneal",             "B4678/S35678"  },
 	{"conway",             "B3/S23"        },
 	{"day_and_night",      "B3678/S34678"  },
+	{"diamoeba",           "B35678/S5678"  },
 	{"highlife",           "B36/S23"       },
+	{"life",               "B3/S23"        },
 	{"life34",             "B34/S34"       },
 	{"life_without_death", "B3/S012345678" },
 	{"maze",               "B3/S12345"     },
 	{"mazectric",          "B3/S1234"      },
+	{"morley",             "B368/S245"     },
+	{"photon",             "B25/S4"        },
 	{"replicator",         "B1357/S1357"   },
 	{"seeds",              "B2/S"          },
 	{NULL,                 NULL            }
