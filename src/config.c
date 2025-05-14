@@ -23,7 +23,7 @@ config_print_usage (FILE *fp)
 	fprintf (fp,
 		"%s\n"
 		"\n"
-		"Usage: %s [-hv] [-R STR] [-r INT] [-c INT] [-t INT] [-p FLOAT] [-s INT]\n"
+		"Usage: %s [-hL] [-R STR] [-r INT] [-c INT] [-t INT] [-p FLOAT] [-s INT]\n"
 		"\n"
 		"Options:\n"
 		"   -h, --help           Show help options\n"
@@ -32,6 +32,7 @@ config_print_usage (FILE *fp)
 		"   -s, --seed           Seed for reproducibility [%d]\n"
 		"   -p, --live-percent   Percentage of living cells [%f]\n"
 		"   -t, --delay          Generation delay in microseconds [%d]\n"
+		"   -L, --list-rules     List all available rule aliases and exit\n"
 		"   -R, --rule           Cellular automaton rule [%s]\n"
 		"                        Use a named alias (e.g., conway, highlife)\n"
 		"                        or a custom rule in RLE (Bx/Sy) format.\n"
@@ -45,47 +46,12 @@ config_print_usage (FILE *fp)
 		"\n"
 		"1. Named aliases:\n"
 		"\n"
-		"Common pre-defined rules can be referenced by name. Examples:\n"
+		"Common pre-defined rules can be referenced by name.\n"
 		"\n"
-		"* conway - Classic Game of Life (B3/S23)\n"
-		"  Cells are born with exactly 3 neighbors and\n"
-		"  survive with 2 or 3.\n"
-		"\n"
-		"* highlife - Variant of Conway's rule (B36/S23)\n"
-		"  Same as conway but also allows birth with 6 neighbors,\n"
-		"  which enables the appearance of replicators.\n"
-		"\n"
-		"* seeds - Minimalistic explosive rule (B2/S)\n"
-		"  All live cells die every generation; dead cells with\n"
-		"  exactly 2 neighbors are born.\n"
-		"\n"
-		"* life34 - Only cells with 3 or 4 neighbors are born\n"
-		"  or survive (B34/S34)\n"
-		"  This rule is known for its stable behavior, with contained\n"
-		"  growth. It eliminates the explosive behavior common in\n"
-		"  other variants.\n"
-		"\n"
-		"* life_without_death - (B3/S012345678)\n"
-		"  Once a cell is born, it never dies. Growth is irreversible.\n"
-		"\n"
-		"* replicator - (B1357/S1357)\n"
-		" A rule where every pattern replicates over time. Both birth\n"
-		" and survival occur for odd neighbor counts.\n"
-		"\n"
-		"* day_and_night - (B3678/S34678)\n"
-		"  Symmetric under live/dead inversion: same behavior if\n"
-		"  0s and 1s are flipped.\n"
-		"\n"
-		"* anneal - (B4678/S35678)\n"
-		"  Tends toward stability or complete activation depending\n"
-		"  on initial state.\n"
-		"\n"
-		"* mazectric - (B3/S1234)\n"
-		"  Maze-like patterns with branching behavior.\n"
-		"\n"
-		"* maze - (B3/S12345)\n"
-		"  Tends to grow into complex maze-like structures that freeze\n"
-		"  into stable forms.\n"
+		"Examples:\n"
+		"  conway   - B3/S23\n"
+		"  highlife - B36/S23\n"
+		"  seeds    - B2/S\n"
 		"\n"
 		"2. Custom rules in RLE format:\n"
 		"\n"
@@ -93,10 +59,10 @@ config_print_usage (FILE *fp)
 		"conditions.\n"
 		"\n"
 		"For example:\n"
-		"B3/S23   - Classic Conway’s rule: born with 3 neighbors,\n"
-		"           survives with 2 or 3\n"
-		"S23/B3   - Same as above (order and case are ignored)\n"
-		"B36/S23  - Highlife rule\n"
+		"  B3/S23   - Classic Conway’s rule: born with 3 neighbors,\n"
+		"             survives with 2 or 3\n"
+		"  S23/B3   - Same as above (order and case are ignored)\n"
+		"  B36/S23  - Highlife rule\n"
 		"\n"
 		"The format is case-insensitive, and B and S can appear in\n"
 		"any order.  Digits must range from 0 to 8.\n"
@@ -107,6 +73,38 @@ config_print_usage (FILE *fp)
 		"live neighbors matches any of the values listed after 'S'.\n"
 		"\n",
 		PROGNAME, PROGNAME, ROWS, COLS, SEED, LIVE_PERCENT, DELAY, RULE);
+}
+
+static void
+config_print_rules (FILE *fp)
+{
+	const RuleAlias *a = NULL;
+
+	int biggest_len = 0;
+	int len = 0;
+
+	if (rule_aliases[0].name == NULL)
+		{
+			fprintf (fp,
+					"No aliases available for the rules :(\n");
+			return;
+		}
+
+	biggest_len = strlen (rule_aliases[0].name);
+	for (a = &rule_aliases[1]; a->name != NULL; a++)
+		{
+			len = strlen (a->name);
+			if (len > biggest_len)
+				biggest_len = len;
+		}
+
+	fprintf (fp, "Available rule aliases:\n");
+
+	for (a = rule_aliases; a->name != NULL; a++)
+		fprintf (fp, "  - %-*s  %s\n",
+				biggest_len, a->name, a->rule);
+
+	fprintf (fp, "\n");
 }
 
 static void
@@ -182,13 +180,14 @@ config_apply_args (Config *c, int argc, char **argv)
 		{"delay",        required_argument, 0, 't'},
 		{"live-percent", required_argument, 0, 'p'},
 		{"rule",         required_argument, 0, 'R'},
+		{"list-rules",   no_argument,       0, 'L'},
 		{0,              0,                 0,  0 }
 	};
 
 	// progname for getopt
 	argv[0] = PROGNAME;
 
-	while ((o = getopt_long (argc, argv, "hr:c:s:t:p:R:", opt, &option_index)) >= 0)
+	while ((o = getopt_long (argc, argv, "hr:c:s:t:p:R:L", opt, &option_index)) >= 0)
 		{
 			switch (o)
 				{
@@ -226,6 +225,11 @@ config_apply_args (Config *c, int argc, char **argv)
 					{
 						c->rule = optarg;
 						break;
+					}
+				case 'L':
+					{
+						config_print_rules (stdout);
+						exit (EXIT_SUCCESS);
 					}
 				case '?':
 				case ':':
