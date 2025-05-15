@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include <time.h>
 #include <assert.h>
 #include <error.h>
 #include "wrapper.h"
@@ -12,7 +13,7 @@
 #define PROGNAME     "conga"
 #define ROWS         20
 #define COLS         30
-#define SEED         17
+#define SEED         time (NULL)
 #define DELAY        500000
 #define LIVE_PERCENT 0.50
 #define RULE         "conway"
@@ -29,7 +30,7 @@ config_print_usage (FILE *fp)
 		"   -h, --help           Show help options\n"
 		"   -r, --rows           Number of grid rows [%d]\n"
 		"   -c, --cols           Number of grid cols [%d]\n"
-		"   -s, --seed           Seed for reproducibility [%d]\n"
+		"   -s, --seed           Seed for reproducibility [time(NULL)]\n"
 		"   -p, --live-percent   Percentage of living cells [%f]\n"
 		"   -t, --delay          Generation delay in microseconds [%d]\n"
 		"   -L, --list-rules     List all available rule aliases and exit\n"
@@ -72,7 +73,7 @@ config_print_usage (FILE *fp)
 		"A cell survives if it is currently alive and the number of\n"
 		"live neighbors matches any of the values listed after 'S'.\n"
 		"\n",
-		PROGNAME, PROGNAME, ROWS, COLS, SEED, LIVE_PERCENT, DELAY, RULE);
+		PROGNAME, PROGNAME, ROWS, COLS, LIVE_PERCENT, DELAY, RULE);
 }
 
 static void
@@ -123,9 +124,9 @@ config_setup_environment (void)
 Config *
 config_new (void)
 {
-	Config *c = xcalloc (1, sizeof (Config));
+	Config *cfg = xcalloc (1, sizeof (Config));
 
-	*c = (Config) {
+	*cfg = (Config) {
 		.seed         = SEED,
 		.rows         = ROWS,
 		.cols         = COLS,
@@ -134,38 +135,38 @@ config_new (void)
 		.rule         = RULE
 	};
 
-	return c;
+	return cfg;
 }
 
 void
-config_free (Config *c)
+config_free (Config *cfg)
 {
-	xfree (c);
+	xfree (cfg);
 }
 
 static void
-config_validate_args (const Config *c)
+config_validate_args (const Config *cfg)
 {
-	if (c->rows <= 0)
+	if (cfg->rows <= 0)
 		error (1, 0, "--rows must be > 0");
 
-	if (c->cols <= 0)
+	if (cfg->cols <= 0)
 		error (1, 0, "--cols must be > 0");
 
-	if (c->delay <= 0)
+	if (cfg->delay <= 0)
 		error (1, 0, "--delay must be > 0");
 
-	if (c->live_percent <= 0.0 || c->live_percent >= 1.0)
+	if (cfg->live_percent <= 0.0 || cfg->live_percent >= 1.0)
 		error (1, 0, "--live-percent must be [0.0, 1.0[");
 
-	if (!rule_is_valid (c->rule))
+	if (!rule_is_valid (cfg->rule))
 		error (1, 0, "--rule is not a valid rule or alias");
 }
 
 void
-config_apply_args (Config *c, int argc, char **argv)
+config_apply_args (Config *cfg, int argc, char **argv)
 {
-	assert (c != NULL);
+	assert (cfg != NULL);
 	assert (argc > 0 && argv != NULL);
 
 	int option_index;
@@ -198,32 +199,32 @@ config_apply_args (Config *c, int argc, char **argv)
 					}
 				case 'r':
 					{
-						c->rows = atoi (optarg);
+						cfg->rows = atoi (optarg);
 						break;
 					}
 				case 'c':
 					{
-						c->cols = atoi (optarg);
+						cfg->cols = atoi (optarg);
 						break;
 					}
 				case 's':
 					{
-						c->seed = atoi (optarg);
+						cfg->seed = atol (optarg);
 						break;
 					}
 				case 't':
 					{
-						c->delay = atoi (optarg);
+						cfg->delay = atoi (optarg);
 						break;
 					}
 				case 'p':
 					{
-						c->live_percent = atof (optarg);
+						cfg->live_percent = atof (optarg);
 						break;
 					}
 				case 'R':
 					{
-						c->rule = optarg;
+						cfg->rule = optarg;
 						break;
 					}
 				case 'L':
@@ -242,5 +243,5 @@ config_apply_args (Config *c, int argc, char **argv)
 				}
 		}
 
-	config_validate_args (c);
+	config_validate_args (cfg);
 }

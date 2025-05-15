@@ -1,18 +1,17 @@
 #include "cell.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <assert.h>
 #include "wrapper.h"
 #include "utils.h"
 
 void
-cell_set_first_generation (Grid *g, float live_percent)
+cell_set_first_generation (Grid *grid, Rand *rng, float live_percent)
 {
-	assert (g != NULL);
+	assert (grid != NULL);
 	assert (live_percent > 0 && live_percent < 1);
 
-	int total_cells = g->rows * g->cols;
+	int total_cells = grid->rows * grid->cols;
 	int live_cells = total_cells * live_percent;
 	int i = 0;
 
@@ -24,36 +23,37 @@ cell_set_first_generation (Grid *g, float live_percent)
 			pos[i] = i;
 
 			// Zero the grid matrix
-			g->cur[i] = 0;
+			grid->cur[i] = 0;
 		}
 
-	shuffle (pos, total_cells, rand);
+	shuffle (pos, total_cells, rng);
 
 	for (i = 0; i < live_cells; i++)
-		g->cur[pos[i]] = 1;
+		grid->cur[pos[i]] = 1;
 
 	xfree (pos);
 }
 
 void
-cell_step_generation (Grid *g, Rule *r)
+cell_step_generation (Grid *grid, Rule *rule)
 {
-	assert (g != NULL);
+	assert (grid != NULL);
+	assert (rule != NULL);
 
 	int neighbors = 0;
 	int alive = 0;
 
-	for (int i = 0; i < g->rows; i++)
+	for (int i = 0; i < grid->rows; i++)
 		{
-			for (int j = 0; j < g->cols; j++)
+			for (int j = 0; j < grid->cols; j++)
 				{
-					alive     = GRID_CUR_GET (g, i, j);
-					neighbors = grid_count_neighbors (g, i, j);
+					alive     = GRID_CUR_GET (grid, i, j);
+					neighbors = grid_count_neighbors (grid, i, j);
 
-					GRID_NEXT_SET (g, i, j,
-							rule_next_state (r, alive, neighbors));
+					GRID_NEXT_SET (grid, i, j,
+							rule_next_state (rule, alive, neighbors));
 				}
 		}
 
-	GRID_SWAP (g);
+	GRID_SWAP (grid);
 }

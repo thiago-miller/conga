@@ -1,3 +1,5 @@
 #pragma once
 
-void shuffle (int *vet, int nmemb, int (*func) (void));
+#include "rand.h"
+
+void shuffle (int *vet, int nmemb, Rand *rng);

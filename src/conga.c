@@ -5,15 +5,22 @@
 #include <unistd.h>
 #include <signal.h>
 #include <assert.h>
+#include "wrapper.h"
 #include "grid.h"
 #include "cell.h"
 #include "render.h"
 #include "rule.h"
+#include "rand.h"
 
-static Grid *grid = NULL;
-static Rule *rule = NULL;
-static int done = 0;
-static int delay = 1000000;
+struct _Conga
+{
+	Grid *grid;
+	Rule *rule;
+	Rand *rng;
+	int   delay;
+};
+
+static volatile sig_atomic_t done = 0;
 
 static void
 shutdown (int signum)
@@ -22,40 +29,61 @@ shutdown (int signum)
 }
 
 void
-conga_init (const Config *c)
+conga_startup (void)
 {
-	assert (c != NULL);
-
 	signal (SIGINT,  shutdown);
 	signal (SIGQUIT, shutdown);
 	signal (SIGTERM, shutdown);
-
-	srand (c->seed);
-
-	grid = grid_new (c->rows, c->cols);
-	cell_set_first_generation (grid, c->live_percent);
-
-	rule = rule_new (c->rule);
-
-	delay = c->delay;
 
 	render_init ();
 }
 
 void
-conga_run (void)
+conga_shutdown (void)
+{
+	render_finish ();
+}
+
+Conga *
+conga_new (const Config *cfg)
+{
+	assert (cfg != NULL);
+
+	Conga *game = xcalloc (1, sizeof (Conga));
+
+	*game = (Conga) {
+		.grid  = grid_new (cfg->rows, cfg->cols),
+		.rule  = rule_new (cfg->rule),
+		.rng   = rand_new (cfg->seed),
+		.delay = cfg->delay
+	};
+
+	cell_set_first_generation (game->grid, game->rng,
+			cfg->live_percent);
+
+	return game;
+}
+
+void
+conga_run (Conga *game)
 {
 	while (!done)
 		{
-			render_draw (grid);
-			cell_step_generation (grid, rule);
-			usleep (delay);
+			render_draw (game->grid);
+			cell_step_generation (game->grid, game->rule);
+			usleep (game->delay);
 		}
 }
 
 void
-conga_finish (void)
+conga_free (Conga *game)
 {
-	grid_free (grid);
-	render_finish ();
+	if  (game == NULL)
+		return;
+
+	grid_free (game->grid);
+	rule_free (game->rule);
+	rand_free (game->rng);
+
+	xfree (game);
 }

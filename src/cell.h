@@ -2,6 +2,7 @@
 
 #include "grid.h"
 #include "rule.h"
+#include "rand.h"
 
-void cell_set_first_generation (Grid *g, float live_percent);
-void cell_step_generation      (Grid *g, Rule *r);
+void cell_set_first_generation (Grid *grid, Rand *rng, float live_percent);
+void cell_step_generation      (Grid *grid, Rule *rule);
