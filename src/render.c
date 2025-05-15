@@ -8,8 +8,13 @@
 #define CURSOR_UP    "\e[H"
 #define CLEAN_SCREEN "\e[H\e[2J"
 #define CLEAN_LINE   "\e[A\e[k"
-#define DEAD         "\u2B1B"
-#define ALIVE        "\u2B1C"
+/*#define DEAD         "\u2B1B"*/
+#define DEAD         "\u26AB"
+/*#define ALIVE        "\u2B1C"*/
+#define ALIVE        "\u2B55"
+
+// x26AA white
+// x26AB black
 
 static const char *const status[] = {DEAD, ALIVE};
 
@@ -28,16 +33,16 @@ render_finish (void)
 }
 
 void
-render_draw (const Grid *g)
+render_draw (const Grid *grid)
 {
-	assert (g != NULL);
+	assert (grid != NULL);
 
 	printf (CURSOR_UP);
 
-	for (int i = 0; i < g->rows; i++)
+	for (int i = 0; i < grid->rows; i++)
 		{
-			for (int j = 0; j < g->cols; j++)
-				printf (status[GRID_CUR_GET (g, i, j)]);
+			for (int j = 0; j < grid->cols; j++)
+				printf (status[GRID_CUR_GET (grid, i, j)]);
 
 			printf ("\n");
 		}

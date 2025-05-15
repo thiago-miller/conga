@@ -135,18 +135,18 @@ rule_new (const char *str)
 {
 	assert (str != NULL);
 
-	Rule *r = xcalloc (1, sizeof (Rule));
-	int rc = rule_parse_into_table (r->table, str);
+	Rule *rule = xcalloc (1, sizeof (Rule));
+	int rc = rule_parse_into_table (rule->table, str);
 
 	assert (rc);
 
-	return r;
+	return rule;
 }
 
 void
-rule_free (Rule *r)
+rule_free (Rule *rule)
 {
-	xfree (r);
+	xfree (rule);
 }
 
 int
@@ -157,11 +157,11 @@ rule_is_valid (const char *str)
 }
 
 int
-rule_next_state (Rule *r, int state, int neighbors)
+rule_next_state (Rule *rule, int state, int neighbors)
 {
-	assert (r != NULL);
+	assert (rule != NULL);
 	assert (state >= 0 && state < STATES);
 	assert (neighbors >= 0 && neighbors < NEIGHBORS);
 
-	return r->table[state][neighbors];
+	return rule->table[state][neighbors];
 }

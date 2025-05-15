@@ -7,14 +7,18 @@ main (int argc, char **argv)
 {
 	config_setup_environment ();
 
-	Config *c = config_new ();
-	config_apply_args (c, argc, argv);
+	Config *cfg = config_new ();
+	config_apply_args (cfg, argc, argv);
 
-	conga_init (c);
-	conga_run ();
-	conga_finish ();
+	Conga *game = conga_new (cfg);
+	conga_startup ();
 
-	config_free (c);
+	conga_run (game);
+
+	conga_shutdown ();
+	conga_free (game);
+
+	config_free (cfg);
 
 	return EXIT_SUCCESS;
 }

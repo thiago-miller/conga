@@ -13,45 +13,45 @@ grid_new (int rows, int cols)
 {
 	assert (rows * cols > 0);
 
-	Grid *g = xcalloc (1, sizeof (Grid));
+	Grid *grid = xcalloc (1, sizeof (Grid));
 
-	*g = (Grid) {
+	*grid = (Grid) {
 		.rows  = rows,
 		.cols  = cols,
 		.cur   = xcalloc (rows * cols, sizeof (int)),
 		.next  = xcalloc (rows * cols, sizeof (int))
 	};
 
-	return g;
+	return grid;
 }
 
 void
-grid_free (Grid *g)
+grid_free (Grid *grid)
 {
-	if (g == NULL)
+	if (grid == NULL)
 		return;
 
-	xfree (g->cur);
-	xfree (g->next);
+	xfree (grid->cur);
+	xfree (grid->next);
 
-	xfree (g);
+	xfree (grid);
 }
 
 int
-grid_count_neighbors (const Grid *g, int i, int j)
+grid_count_neighbors (const Grid *grid, int i, int j)
 {
-	assert (g != NULL);
-	assert (GRID_RANGE_CHECK (g, i, j));
+	assert (grid != NULL);
+	assert (GRID_RANGE_CHECK (grid, i, j));
 
 	int ni = 0, nj = 0;
 	int live_neighbors = 0;
 
 	for (int k = 0; k < NEIGHBORS; k++)
 		{
-			ni = (i + delta_i[k] + g->rows) % g->rows;
-			nj = (j + delta_j[k] + g->cols) % g->cols;
+			ni = (i + delta_i[k] + grid->rows) % grid->rows;
+			nj = (j + delta_j[k] + grid->cols) % grid->cols;
 
-			if (GRID_CUR_GET (g, ni, nj))
+			if (GRID_CUR_GET (grid, ni, nj))
 				live_neighbors++;
 		}
 

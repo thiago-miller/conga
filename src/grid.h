@@ -46,5 +46,5 @@ typedef struct
 } while (0)
 
 Grid * grid_new             (int rows, int cols);
-void   grid_free            (Grid *g);
-int    grid_count_neighbors (const Grid *g, int i, int j);
+void   grid_free            (Grid *grid);
+int    grid_count_neighbors (const Grid *grid, int i, int j);
