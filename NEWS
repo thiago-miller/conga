@@ -1,3 +1,16 @@
+Version 0.3.0
+
+* Add custom rules, following the RLE format (Bx/Sy).
+  This format explicitly defines birth (B) and survival
+  (S) conditions. For example: B3/S23 is the classic
+  Conway’s rule: born with 3 neighbors, survives
+  with 2 or 3.
+
+* Add rule aliases, as conway, highlife, seeds.
+  See `conga -L` for the complete list.
+
+* Random number generator with 'drand48_r'.
+
 Version 0.2.0
 
 * Modularize the 'conga.c' script:
