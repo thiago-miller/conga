@@ -1,5 +1,7 @@
 #include "check_conga.h"
 
+#include <signal.h>
+
 #include "../src/rand.h"
 
 #define SEED 17
@@ -45,23 +47,37 @@ START_TEST (test_reproducibility)
 }
 END_TEST
 
+START_TEST (test_rand_uniform_fatal)
+{
+	rand_uniform (NULL);
+}
+END_TEST
+
 Suite *
 make_rand_suite (void)
 {
 	Suite *s;
 	TCase *tc_core;
+	TCase *tc_abort;
 
 	s = suite_create ("Rand");
 
 	/* Core test case */
 	tc_core = tcase_create ("Core");
-	tcase_add_checked_fixture (tc_core, setup, teardown);
 
+	tcase_add_checked_fixture (tc_core, setup, teardown);
 	tcase_add_loop_test (tc_core, test_rand_uniform, 1, 10);
 	tcase_add_loop_test (tc_core, test_rand_int, 1, 10);
 	tcase_add_test (tc_core, test_reproducibility);
 
+	/* Abort test case */
+	tc_abort = tcase_create ("Abort");
+
+	tcase_add_test_raise_signal (tc_abort,
+			test_rand_uniform_fatal, SIGABRT);
+
 	suite_add_tcase (s, tc_core);
+	suite_add_tcase (s, tc_abort);
 
 	return s;
 }
