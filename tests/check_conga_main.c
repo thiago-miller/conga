@@ -12,6 +12,7 @@ main (void)
 	srunner_add_suite (sr, make_wrapper_suite ());
 	srunner_add_suite (sr, make_rand_suite ());
 	srunner_add_suite (sr, make_utils_suite ());
+	srunner_add_suite (sr, make_rule_suite ());
 
 	srunner_run_all (sr, CK_NORMAL);
 	number_failed = srunner_ntests_failed (sr);
