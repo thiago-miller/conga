@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <assert.h>
+#include <error.h>
 #include "wrapper.h"
 
 #define STATES    2
@@ -14,6 +15,21 @@ typedef int RuleTable[STATES][NEIGHBORS];
 struct _Rule
 {
 	RuleTable table;
+};
+
+enum RuleTokenType
+{
+	SEP       = 258,
+	BORN      = 259,
+	SURVIVE   = 260,
+	NUMBER    = 261,
+	MISTERY   = 262
+};
+
+enum RuleParserState
+{
+	WAITING_OP      = 258,
+	READING_NUMBERS = 259
 };
 
 const RuleAlias rule_aliases[] =
@@ -54,78 +70,138 @@ rule_get_rule_from_alias (const char *alias)
 }
 
 static int
-rule_parse_into_table (RuleTable table, const char *str)
+rule_lex (const char *str, const char **pp, int *val)
 {
-	if (str == NULL)
+	if (str != NULL)
+		*pp = str;
+
+	if (**pp == '\0')
 		return 0;
 
-	const char *rule = NULL;
+	char c = *(*pp)++;
 
-	if ((rule = rule_get_rule_from_alias (str)) == NULL)
-		rule = str;
-
-	memset (table, 0, sizeof (RuleTable));
-
-	// -1 (init or /), 0 = B (born), 1 = S (survive)
-	int mode = -1;
-
-	// avoid B/S duplication and ensure that they will be counted
-	int check[STATES] = {0};
-
-	char c = 0;
-	int  n = 0;
-
-	for (const char *p = rule; *p != '\0'; p++)
+	if (isdigit (c))
 		{
-			c = tolower (*p);
+			if (val != NULL)
+				*val = c - '0';
+			return NUMBER;
+		}
 
-			switch (c)
+	switch (c)
+		{
+		case 'b': case 'B': return BORN;
+		case 's': case 'S': return SURVIVE;
+		case '/': return SEP;
+		default :
+			{
+				error (0, 0, "Mistery character '%c'", c);
+				return MISTERY;
+			}
+		}
+}
+
+static int
+rule_parse_into_table (RuleTable table, const char *str)
+{
+	// RuleParserState
+	int mode = WAITING_OP;
+
+	// B/S index
+	int state = 0;
+
+	// avoid B/S and / duplication and ensure
+	// that they will be counted
+	int check[STATES + 1] = {0};
+	char op[STATES] = {'B', 'S'};
+
+	const char *p = NULL;
+	int val = 0;
+
+	if (table != NULL)
+		memset (table, 0, sizeof (RuleTable));
+
+	for (int token = rule_lex (str, &p, &val); token;
+			token = rule_lex (NULL, &p, &val))
+		{
+			switch (token)
 				{
-				case 'b' :
+				case BORN:
+				case SURVIVE:
 					{
-						if (mode != -1 || check[0])
-							return 0;
-						mode = 0;
-						check[0] = 1;
+						state = token - BORN;
+
+						if (check[state])
+							{
+								error (0, 0, "'%c' operator is repeated",
+										op[state]);
+								return 0;
+							}
+
+						if (mode != WAITING_OP)
+							{
+								error (0, 0, "'%c' operator does not appear after the / separator",
+										op[state]);
+								return 0;
+							}
+
+						mode = READING_NUMBERS;
+						check[state] = 1;
+
 						break;
 					}
-				case 's' :
+				case SEP:
 					{
-						if (mode != -1 || check[1])
-							return 0;
-						mode = 1;
-						check[1] = 1;
+						if (check[2])
+							{
+								error (0, 0, "'/' separator is repeated");
+								return 0;
+							}
+
+						if (mode == WAITING_OP)
+							{
+								error (0, 0, "'/' separator appears at the beginning");
+								return 0;
+							}
+
+						mode = WAITING_OP;
+						check[2] = 1;
+
 						break;
 					}
-				case '/' :
+				case NUMBER:
 					{
-						if (mode == -1)
-							return 0;
-						mode = -1;
+						if (mode != READING_NUMBERS)
+							{
+								error (0, 0, "Number without operator 'B' or 'S'");
+								return 0;
+							}
+
+						if (!(val >= 0 && val < NEIGHBORS))
+							{
+								error (0, 0, "Number '%d' not at range [0, %d)",
+										val, NEIGHBORS);
+								return 0;
+							}
+
+						if (table != NULL)
+							table[state][val] = 1;
+
 						break;
 					}
-				default  :
+				case MISTERY:
 					{
-						// number without B/S before
-						if (mode == -1)
-							return 0;
-
-						if (!isdigit (c))
-							return 0;
-
-						n = c - '0';
-
-						if (!(n >= 0 && n < NEIGHBORS))
-							return 0;
-
-						table[mode][n] = 1;
+						error (0, 0, "What is that?");
+						return 0;
 					}
 				}
 		}
 
 	for (int i = 0; i < STATES; i++)
 		if (!check[i])
-			return 0;
+			{
+				error (0, 0, "Missing operator '%c'", op[i]);
+				return 0;
+			}
 
 	return 1;
 }
@@ -136,7 +212,12 @@ rule_new (const char *str)
 	assert (str != NULL);
 
 	Rule *rule = xcalloc (1, sizeof (Rule));
-	int rc = rule_parse_into_table (rule->table, str);
+
+	const char *rule_str = NULL;
+	if ((rule_str = rule_get_rule_from_alias (str)) == NULL)
+		rule_str = str;
+
+	int rc = rule_parse_into_table (rule->table, rule_str);
 
 	assert (rc);
 
@@ -152,8 +233,10 @@ rule_free (Rule *rule)
 int
 rule_is_valid (const char *str)
 {
-	RuleTable dummy;
-	return rule_parse_into_table (dummy, str);
+	assert (str != NULL);
+
+	return rule_get_rule_from_alias (str) != NULL
+		|| rule_parse_into_table (NULL, str);
 }
 
 int
