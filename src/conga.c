@@ -81,6 +81,8 @@ conga_run (Conga *game)
 			switch (key)
 				{
 				case INPUT_ESC:
+				case 'q':
+				case 'Q':
 					{
 						done = 1;
 						continue;
