@@ -5,7 +5,6 @@
 #else
 #include <termios.h>
 #include <unistd.h>
-#include <stdio.h>
 #include <sys/select.h>
 #include <error.h>
 
@@ -40,10 +39,11 @@ void
 input_finish (void)
 {
 #ifdef _WIN32
-	// Nada a fazer
+	// <conio.h>
 #else
 	if (initialized)
-		tcsetattr (STDIN_FILENO, TCSANOW, &saved_attributes);
+		if (tcsetattr (STDIN_FILENO, TCSANOW, &saved_attributes) == -1)
+			error (1, 1, "tcsetattr");
 #endif
 }
 
@@ -66,11 +66,17 @@ input_available (void)
 int
 input_read_key (void)
 {
-	return input_available () ?
+	if (!input_available ())
+		return -1;
+
 #ifdef _WIN32
-		_getch ()
+	return _getch ()
 #else
-		getchar ()
+	char c;
+
+	if (read (STDIN_FILENO, &c, 1) == -1)
+		error (1, 1, "read");
+
+	return c;
 #endif
-		: -1;
 }
