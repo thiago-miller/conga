@@ -69,8 +69,9 @@ conga_run (Conga *game)
 {
 	while (!done)
 		{
-			render_draw (game->grid);
 			cell_step_generation (game->grid, game->rule);
+			render_draw (game->grid);
+			GRID_SWAP (game->grid);
 			usleep (game->delay);
 		}
 }

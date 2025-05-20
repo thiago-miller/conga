@@ -54,6 +54,4 @@ cell_step_generation (Grid *grid, Rule *rule)
 							rule_next_state (rule, alive, neighbors));
 				}
 		}
-
-	GRID_SWAP (grid);
 }

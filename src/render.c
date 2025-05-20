@@ -3,20 +3,21 @@
 #include <stdio.h>
 #include <assert.h>
 
-#define CURSOR_OFF   "\e[?25l"
-#define CURSOR_ON    "\e[?25h"
-#define CURSOR_UP    "\e[H"
-#define CLEAN_SCREEN "\e[H\e[2J"
-#define CLEAN_LINE   "\e[A\e[k"
-/*#define DEAD         "\u2B1B"*/
-#define DEAD         "\u26AB"
-/*#define ALIVE        "\u2B1C"*/
-#define ALIVE        "\u2B55"
+#define CURSOR_OFF     "\e[?25l"
+#define CURSOR_ON      "\e[?25h"
+#define CURSOR_UP      "\e[H"
+#define CLEAN_SCREEN   "\e[H\e[2J"
+#define CLEAN_LINE     "\e[A\e[k"
+#define DEAD_STABLE    "  "
+#define DEAD_TO_LIVE   "⬜"
+#define ALIVE_TO_DEAD  "🟪"
+#define ALIVE_STABLE   "🟦"
 
-// x26AA white
-// x26AB black
-
-static const char *const status[] = {DEAD, ALIVE};
+static const char *const status[][2] =
+{
+	{DEAD_STABLE,   DEAD_TO_LIVE},
+	{ALIVE_TO_DEAD, ALIVE_STABLE}
+};
 
 void
 render_init (void)
@@ -42,7 +43,7 @@ render_draw (const Grid *grid)
 	for (int i = 0; i < grid->rows; i++)
 		{
 			for (int j = 0; j < grid->cols; j++)
-				printf (status[GRID_CUR_GET (grid, i, j)]);
+				printf (status[GRID_CUR_GET (grid, i, j)][GRID_NEXT_GET (grid, i, j)]);
 
 			printf ("\n");
 		}
