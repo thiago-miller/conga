@@ -10,6 +10,12 @@
 #include "wrapper.h"
 #include "rule.h"
 
+#ifdef HAVE_VERSION_H
+#include "version.h"
+#else
+#define VERSION "0.0.0-dummy"
+#endif
+
 #define PROGNAME     "conga"
 #define ROWS         20
 #define COLS         30
@@ -22,7 +28,7 @@ static void
 config_print_usage (FILE *fp)
 {
 	fprintf (fp,
-		"%s\n"
+		"%s %s\n"
 		"\n"
 		"Usage: %s [-hL] [-R STR] [-r INT] [-c INT] [-t INT] [-p FLOAT] [-s INT]\n"
 		"\n"
@@ -73,7 +79,13 @@ config_print_usage (FILE *fp)
 		"A cell survives if it is currently alive and the number of\n"
 		"live neighbors matches any of the values listed after 'S'.\n"
 		"\n",
-		PROGNAME, PROGNAME, ROWS, COLS, LIVE_PERCENT, DELAY, RULE);
+		PROGNAME, VERSION, PROGNAME, ROWS, COLS, LIVE_PERCENT, DELAY, RULE);
+}
+
+static void
+config_print_version (FILE *fp)
+{
+	fprintf (fp, "%s %s\n", PROGNAME, VERSION);
 }
 
 static void
@@ -175,6 +187,7 @@ config_apply_args (Config *cfg, int argc, char **argv)
 	struct option opt[] =
 	{
 		{"help",         no_argument,       0, 'h'},
+		{"version",      no_argument,       0, 'V'},
 		{"rows",         required_argument, 0, 'r'},
 		{"cols",         required_argument, 0, 'c'},
 		{"seed",         required_argument, 0, 's'},
@@ -188,13 +201,18 @@ config_apply_args (Config *cfg, int argc, char **argv)
 	// progname for getopt
 	argv[0] = PROGNAME;
 
-	while ((o = getopt_long (argc, argv, "hr:c:s:t:p:R:L", opt, &option_index)) >= 0)
+	while ((o = getopt_long (argc, argv, "hVr:c:s:t:p:R:L", opt, &option_index)) >= 0)
 		{
 			switch (o)
 				{
 				case 'h':
 					{
 						config_print_usage (stdout);
+						exit (EXIT_SUCCESS);
+					}
+				case 'V':
+					{
+						config_print_version (stdout);
 						exit (EXIT_SUCCESS);
 					}
 				case 'r':
