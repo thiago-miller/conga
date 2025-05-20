@@ -1,3 +1,15 @@
+Version 0.4.0
+
+* Add libcheck for testing.
+
+* Four states for rendering:
+  - Dead stable;
+  - Dead to alive;
+  - Alive to dead;
+  - Alive stable.
+
+* Handle keystrokes asynchronously (q/Q, ESC, SPACE, ENTER).
+
 Version 0.3.0
 
 * Add custom rules, following the RLE format (Bx/Sy).
