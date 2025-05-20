@@ -11,6 +11,7 @@
 #include "render.h"
 #include "rule.h"
 #include "rand.h"
+#include "input.h"
 
 struct _Conga
 {
@@ -20,12 +21,12 @@ struct _Conga
 	int   delay;
 };
 
-static volatile sig_atomic_t done = 0;
+static volatile sig_atomic_t die = 0;
 
 static void
 shutdown (int signum)
 {
-	done = 1;
+	die = 1;
 }
 
 void
@@ -35,12 +36,14 @@ conga_startup (void)
 	signal (SIGQUIT, shutdown);
 	signal (SIGTERM, shutdown);
 
+	input_init ();
 	render_init ();
 }
 
 void
 conga_shutdown (void)
 {
+	input_finish ();
 	render_finish ();
 }
 
@@ -67,11 +70,36 @@ conga_new (const Config *cfg)
 void
 conga_run (Conga *game)
 {
-	while (!done)
+	int paused = 0;
+	int done = 0;
+	int key = 0;
+
+	while (!die && !done)
 		{
-			cell_step_generation (game->grid, game->rule);
-			render_draw (game->grid);
-			GRID_SWAP (game->grid);
+			key = input_read_key ();
+
+			switch (key)
+				{
+				case INPUT_ESC:
+					{
+						done = 1;
+						continue;
+					}
+				case INPUT_ENTER:
+				case INPUT_SPACE:
+					{
+						paused = !paused;
+						break;
+					}
+				}
+
+			if (!paused)
+				{
+					cell_step_generation (game->grid, game->rule);
+					render_draw (game->grid);
+					GRID_SWAP (game->grid);
+				}
+
 			usleep (game->delay);
 		}
 }
