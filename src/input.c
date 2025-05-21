@@ -67,16 +67,63 @@ int
 input_read_key (void)
 {
 	if (!input_available ())
-		return -1;
+		return INPUT_NONE;
 
 #ifdef _WIN32
-	return _getch ()
-#else
-	char c;
+	int ch = _getch();
 
-	if (read (STDIN_FILENO, &c, 1) == -1)
+	if (ch == 224 || ch == 0)
+		{
+			if (!input_available ())
+				return INPUT_NONE;
+
+			// Windows arrow/function keys
+			int ext = _getch();
+
+			switch (ext)
+				{
+				case 72 : return INPUT_ARROW_UP;
+				case 80 : return INPUT_ARROW_DOWN;
+				case 75 : return INPUT_ARROW_LEFT;
+				case 77 : return INPUT_ARROW_RIGHT;
+				default : return INPUT_NONE;
+				}
+		}
+
+	return ch;
+#else
+	unsigned char ch;
+
+	if (read (STDIN_FILENO, &ch, 1) != 1)
 		error (1, 1, "read");
 
-	return c;
+	if (ch == 27)
+		{
+			// ESC
+			unsigned char ext[2];
+
+			for (int i = 0; i < 2; i++)
+				if (!input_available ())
+					return INPUT_ESC;
+				else if (read (STDIN_FILENO, &ext[i], 1) != 1)
+					error (1, 1, "read");
+
+			if (ext[0] == '[')
+				{
+					switch (ext[1])
+						{
+						case 'A': return INPUT_ARROW_UP;
+						case 'B': return INPUT_ARROW_DOWN;
+						case 'C': return INPUT_ARROW_RIGHT;
+						case 'D': return INPUT_ARROW_LEFT;
+						default : return INPUT_ESC;
+						}
+				}
+
+			// fallback
+			return INPUT_ESC;
+		}
+
+	return ch;
 #endif
 }
