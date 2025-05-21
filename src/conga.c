@@ -2,7 +2,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <signal.h>
 #include <assert.h>
 #include "wrapper.h"
@@ -12,6 +11,19 @@
 #include "rule.h"
 #include "rand.h"
 #include "input.h"
+
+#ifdef _WIN32
+#include <windows.h>
+// Sleep in miliseconds
+#define CONGA_SLEEP(u) Sleep(u / 1000);
+#else
+#include <unistd.h>
+// Sleep in microseconds
+#define CONGA_SLEEP(u) usleep(u);
+#endif
+
+#define FPS  60
+#define TICK 1000000 / FPS
 
 struct _Conga
 {
@@ -63,16 +75,33 @@ conga_new (const Config *cfg)
 
 	cell_set_first_generation (game->grid, game->rng,
 			cfg->live_percent);
+	cell_step_generation (game->grid, game->rule);
 
 	return game;
+}
+
+static inline void
+conga_update_logic (Conga *game)
+{
+	GRID_SWAP (game->grid);
+	cell_step_generation (game->grid, game->rule);
+}
+
+static inline void
+conga_update_graphics (Conga *game)
+{
+	render_draw (game->grid);
 }
 
 void
 conga_run (Conga *game)
 {
 	int paused = 0;
-	int done = 0;
-	int key = 0;
+	int done   = 0;
+	int key    = 0;
+	int tick   = 0;
+
+	conga_update_graphics (game);
 
 	while (!die && !done)
 		{
@@ -95,14 +124,17 @@ conga_run (Conga *game)
 					}
 				}
 
-			if (!paused)
+			if (!paused && tick >= game->delay)
 				{
-					cell_step_generation (game->grid, game->rule);
-					render_draw (game->grid);
-					GRID_SWAP (game->grid);
+					conga_update_logic (game);
+					conga_update_graphics (game);
+					tick %= game->delay;
 				}
 
-			usleep (game->delay);
+			CONGA_SLEEP (TICK);
+
+			if (!paused)
+				tick += TICK;
 		}
 }
 
