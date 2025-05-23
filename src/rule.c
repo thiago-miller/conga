@@ -26,7 +26,7 @@ enum RuleTokenType
 	MISTERY   = 262
 };
 
-enum RuleParserState
+enum RuleParseState
 {
 	WAITING_OP      = 258,
 	READING_NUMBERS = 259
