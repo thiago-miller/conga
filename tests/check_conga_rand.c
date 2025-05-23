@@ -8,13 +8,13 @@
 
 static Rand *rng = NULL;
 
-void
+static void
 setup (void)
 {
 	rng = rand_new (SEED);
 }
 
-void
+static void
 teardown (void)
 {
 	rand_free (rng);
