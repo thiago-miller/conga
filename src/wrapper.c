@@ -1,6 +1,7 @@
 #include "wrapper.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <error.h>
 
 void *
@@ -37,4 +38,16 @@ xfree (void *ptr)
 	if (ptr == NULL)
 		return;
 	free (ptr);
+}
+
+char *
+xstrdup (const char *str)
+{
+	size_t len = strlen (str) + 1;
+	void *new = malloc (len);
+
+	if (new == NULL)
+		error (1, 1, "strdup failed");
+
+	return (char *) memcpy (new, str, len);
 }

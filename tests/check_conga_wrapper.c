@@ -8,8 +8,8 @@
 static int alloc_failed = 0;
 
 // Mocking
-void * __real_malloc (size_t bytes);
-void * __real_calloc (size_t nmemb, size_t bytes);
+void * __real_malloc  (size_t bytes);
+void * __real_calloc  (size_t nmemb, size_t bytes);
 
 void
 setup_oom (void)
@@ -85,6 +85,14 @@ START_TEST (test_xfree)
 }
 END_TEST
 
+START_TEST (test_xstrdup)
+{
+	char *s = xstrdup ("PONGA");
+	ck_assert_str_eq (s, "PONGA");
+	xfree (s);
+}
+END_TEST
+
 START_TEST (test_xmalloc1_oom)
 {
 	void *p = xmalloc (10);
@@ -113,6 +121,13 @@ START_TEST (test_xcalloc2_oom)
 }
 END_TEST
 
+START_TEST (test_xstrdup_oom)
+{
+	char *s = xstrdup ("PONGA");
+	xfree (s);
+}
+END_TEST
+
 Suite *
 make_wrapper_suite (void)
 {
@@ -133,6 +148,7 @@ make_wrapper_suite (void)
 	tcase_add_test (tc_core, test_xmalloc);
 	tcase_add_test (tc_core, test_xcalloc);
 	tcase_add_test (tc_core, test_xfree);
+	tcase_add_test (tc_core, test_xstrdup);
 
 	tcase_add_exit_test (tc_abort,
 			test_xmalloc1_oom, EXIT_FAILURE);
@@ -142,6 +158,8 @@ make_wrapper_suite (void)
 			test_xcalloc1_oom, EXIT_FAILURE);
 	tcase_add_exit_test (tc_abort,
 			test_xcalloc2_oom, EXIT_FAILURE);
+	tcase_add_exit_test (tc_abort,
+			test_xstrdup_oom, EXIT_FAILURE);
 
 	suite_add_tcase (s, tc_core);
 	suite_add_tcase (s, tc_abort);
