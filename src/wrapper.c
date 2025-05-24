@@ -1,6 +1,5 @@
 #include "wrapper.h"
 
-#include <stdio.h>
 #include <string.h>
 #include <error.h>
 
@@ -50,4 +49,31 @@ xstrdup (const char *str)
 		error (1, 1, "strdup failed");
 
 	return (char *) memcpy (new, str, len);
+}
+
+FILE *
+xfopen (const char *path, const char *mode)
+{
+	FILE *fp = fopen (path, mode);
+	if (fp != NULL)
+		return fp;
+
+	if (*mode && mode[1] == '+')
+		error (1, 1, "Could not open '%s' for reading and writing", path);
+	else if (*mode == 'w' || *mode == 'a')
+		error (1, 1, "Could not open '%s' for writing", path);
+	else
+		error (1, 1, "Could not open '%s' for reading", path);
+
+	return fp;
+}
+
+void
+xfclose (FILE *fp)
+{
+	if (fp == NULL)
+		return;
+
+	if (fclose (fp) == EOF)
+		error (1, 1, "Could not close file stream");
 }

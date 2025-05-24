@@ -1,6 +1,7 @@
 #include "check_conga.h"
 
 #include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 
 #include "../src/wrapper.h"
@@ -128,6 +129,48 @@ START_TEST (test_xstrdup_oom)
 }
 END_TEST
 
+START_TEST (test_xfopen)
+{
+	char path[] = "/tmp/pongaXXXXXX";
+	int fd = mkstemp (path);
+	close (fd);
+
+	FILE *fp = xfopen (path, "w");
+	ck_assert (fp != NULL);
+	xfclose (fp);
+
+	fp = xfopen (path, "r");
+	ck_assert (fp != NULL);
+	xfclose (fp);
+
+	unlink (path);
+}
+END_TEST
+
+START_TEST (test_xfclose)
+{
+	xfclose (NULL);
+}
+END_TEST
+
+START_TEST (test_xfopen_rw_abort)
+{
+	xfopen (NULL, "r+");
+}
+END_TEST
+
+START_TEST (test_xfopen_w_abort)
+{
+	xfopen (NULL, "w");
+}
+END_TEST
+
+START_TEST (test_xfopen_r_abort)
+{
+	xfopen (NULL, "r");
+}
+END_TEST
+
 Suite *
 make_wrapper_suite (void)
 {
@@ -149,6 +192,8 @@ make_wrapper_suite (void)
 	tcase_add_test (tc_core, test_xcalloc);
 	tcase_add_test (tc_core, test_xfree);
 	tcase_add_test (tc_core, test_xstrdup);
+	tcase_add_test (tc_core, test_xfopen);
+	tcase_add_test (tc_core, test_xfclose);
 
 	tcase_add_exit_test (tc_abort,
 			test_xmalloc1_oom, EXIT_FAILURE);
@@ -160,6 +205,12 @@ make_wrapper_suite (void)
 			test_xcalloc2_oom, EXIT_FAILURE);
 	tcase_add_exit_test (tc_abort,
 			test_xstrdup_oom, EXIT_FAILURE);
+	tcase_add_exit_test (tc_abort,
+			test_xfopen_rw_abort,  EXIT_FAILURE);
+	tcase_add_exit_test (tc_abort,
+			test_xfopen_w_abort,   EXIT_FAILURE);
+	tcase_add_exit_test (tc_abort,
+			test_xfopen_r_abort,   EXIT_FAILURE);
 
 	suite_add_tcase (s, tc_core);
 	suite_add_tcase (s, tc_abort);
