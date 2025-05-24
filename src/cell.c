@@ -23,34 +23,36 @@ cell_set_first_generation (Grid *grid, Rand *rng, float live_percent)
 			pos[i] = i;
 
 			// Zero the grid matrix
-			grid->cur[i] = 0;
+			grid->data[i] = 0;
 		}
 
 	shuffle (pos, total_cells, rng);
 
 	for (i = 0; i < live_cells; i++)
-		grid->cur[pos[i]] = 1;
+		grid->data[pos[i]] = 1;
 
 	xfree (pos);
 }
 
 void
-cell_step_generation (Grid *grid, Rule *rule)
+cell_step_generation (Grid *grid_cur, Grid *grid_next, Rule *rule)
 {
-	assert (grid != NULL);
+	assert (grid_cur != NULL && grid_next != NULL);
+	assert (grid_cur->rows == grid_next->rows
+			&& grid_cur->cols == grid_next->cols);
 	assert (rule != NULL);
 
 	int neighbors = 0;
 	int alive = 0;
 
-	for (int i = 0; i < grid->rows; i++)
+	for (int i = 0; i < grid_cur->rows; i++)
 		{
-			for (int j = 0; j < grid->cols; j++)
+			for (int j = 0; j < grid_cur->cols; j++)
 				{
-					alive     = GRID_CUR_GET (grid, i, j);
-					neighbors = grid_count_neighbors (grid, i, j);
+					alive     = GRID_GET (grid_cur, i, j);
+					neighbors = grid_count_neighbors (grid_cur, i, j);
 
-					GRID_NEXT_SET (grid, i, j,
+					GRID_SET (grid_next, i, j,
 							rule_next_state (rule, alive, neighbors));
 				}
 		}

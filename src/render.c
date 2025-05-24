@@ -34,16 +34,18 @@ render_finish (void)
 }
 
 void
-render_draw (const Grid *grid)
+render_draw (const Grid *grid_cur, const Grid *grid_next)
 {
-	assert (grid != NULL);
+	assert (grid_cur != NULL && grid_next != NULL);
+	assert (grid_cur->rows == grid_next->rows
+			&& grid_cur->cols == grid_next->cols);
 
 	printf (CURSOR_UP);
 
-	for (int i = 0; i < grid->rows; i++)
+	for (int i = 0; i < grid_cur->rows; i++)
 		{
-			for (int j = 0; j < grid->cols; j++)
-				printf (status[GRID_CUR_GET (grid, i, j)][GRID_NEXT_GET (grid, i, j)]);
+			for (int j = 0; j < grid_cur->cols; j++)
+				printf (status[GRID_GET (grid_cur, i, j)][GRID_GET (grid_next, i, j)]);
 
 			printf ("\n");
 		}

@@ -27,7 +27,8 @@
 
 struct _Conga
 {
-	Grid *grid;
+	Grid *grid_cur;
+	Grid *grid_next;
 	Rule *rule;
 	Rand *rng;
 	int   delay;
@@ -67,30 +68,41 @@ conga_new (const Config *cfg)
 	Conga *game = xcalloc (1, sizeof (Conga));
 
 	*game = (Conga) {
-		.grid  = grid_new (cfg->rows, cfg->cols),
-		.rule  = rule_new (cfg->rule),
-		.rng   = rand_new (cfg->seed),
-		.delay = cfg->delay
+		.grid_cur  = grid_new (cfg->rows, cfg->cols),
+		.grid_next = grid_new (cfg->rows, cfg->cols),
+		.rule      = rule_new (cfg->rule),
+		.rng       = rand_new (cfg->seed),
+		.delay     = cfg->delay
 	};
 
-	cell_set_first_generation (game->grid, game->rng,
-			cfg->live_percent);
-	cell_step_generation (game->grid, game->rule);
+	cell_set_first_generation (game->grid_cur,
+			game->rng, cfg->live_percent);
+	cell_step_generation (game->grid_cur,
+			game->grid_next, game->rule);
 
 	return game;
 }
 
 static inline void
+conga_swap_grids (Conga *game)
+{
+	Grid *tmp = game->grid_cur;
+	game->grid_cur = game->grid_next;
+	game->grid_next = tmp;
+}
+
+static inline void
 conga_update_logic (Conga *game)
 {
-	GRID_SWAP (game->grid);
-	cell_step_generation (game->grid, game->rule);
+	conga_swap_grids (game);
+	cell_step_generation (game->grid_cur,
+			game->grid_next, game->rule);
 }
 
 static inline void
 conga_update_graphics (Conga *game)
 {
-	render_draw (game->grid);
+	render_draw (game->grid_cur, game->grid_next);
 }
 
 void
@@ -144,7 +156,8 @@ conga_free (Conga *game)
 	if  (game == NULL)
 		return;
 
-	grid_free (game->grid);
+	grid_free (game->grid_cur);
+	grid_free (game->grid_next);
 	rule_free (game->rule);
 	rand_free (game->rng);
 

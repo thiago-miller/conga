@@ -1,6 +1,7 @@
 #include "grid.h"
 
 #include <stdio.h>
+#include <assert.h>
 #include "wrapper.h"
 
 #define NEIGHBORS 8
@@ -18,8 +19,7 @@ grid_new (int rows, int cols)
 	*grid = (Grid) {
 		.rows  = rows,
 		.cols  = cols,
-		.cur   = xcalloc (rows * cols, sizeof (int)),
-		.next  = xcalloc (rows * cols, sizeof (int))
+		.data  = xcalloc (rows * cols, sizeof (int))
 	};
 
 	return grid;
@@ -31,9 +31,7 @@ grid_free (Grid *grid)
 	if (grid == NULL)
 		return;
 
-	xfree (grid->cur);
-	xfree (grid->next);
-
+	xfree (grid->data);
 	xfree (grid);
 }
 
@@ -51,7 +49,7 @@ grid_count_neighbors (const Grid *grid, int i, int j)
 			ni = (i + delta_i[k] + grid->rows) % grid->rows;
 			nj = (j + delta_j[k] + grid->cols) % grid->cols;
 
-			if (GRID_CUR_GET (grid, ni, nj))
+			if (GRID_GET (grid, ni, nj))
 				live_neighbors++;
 		}
 
