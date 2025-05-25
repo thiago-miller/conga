@@ -1,9 +1,11 @@
 #pragma once
 
+#include "grid.h"
+
 typedef struct
 {
 	int   rows;
 	int   cols;
 	char *rule;
-	int  *cells;
+	Grid *grid;
 } Pattern;

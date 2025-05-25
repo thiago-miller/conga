@@ -1,5 +1,6 @@
 #include "check_conga.h"
 
+#include "../src/wrapper.h"
 #include "../src/pattern.c"
 
 #define HEADER_SIZE(h) sizeof (h)/ sizeof (char *)
@@ -50,7 +51,7 @@ static Pattern *pattern = NULL;
 static void
 setup (void)
 {
-	pattern = pattern_new (NULL);
+	pattern = xcalloc (1, sizeof (Pattern));
 }
 
 static void
@@ -76,53 +77,53 @@ START_TEST (test_pattern_header_lex)
 		{
 			switch (token)
 				{
-				case SEP:
+				case HSEP:
 					{
 						ck_assert_int_eq (header[i], ',');
 						i += 2;
 						break;
 					}
-				case EOL:
+				case HEOL:
 					{
 						i += 4;
 						ck_assert_int_eq (header[i], '\n');
 						i++;
 						break;
 					}
-				case ROWS:
+				case HROWS:
 					{
 						ck_assert_int_eq (header[i], 'Y');
 						i += 2;
 						break;
 					}
-				case COLS:
+				case HCOLS:
 					{
 						ck_assert_int_eq (header[i], 'x');
 						i += 2;
 						break;
 					}
-				case RULE:
+				case HRULE:
 					{
 						i += 5;
 						break;
 					}
-				case EQUAL:
+				case HEQUAL:
 					{
 						ck_assert_int_eq (header[i], '=');
 						i += 4;
 						break;
 					}
-				case NUMBER:
+				case HNUMBER:
 					{
 						ck_assert_int_eq (val.num, num[ni++]);
 						break;
 					}
-				case STRING:
+				case HSTRING:
 					{
 						ck_assert_str_eq (val.str, rule);
 						break;
 					}
-				case MISTERY:
+				case HMISTERY:
 					{
 						ck_assert_int_eq (header[i], '+');
 						break;
@@ -152,6 +153,36 @@ START_TEST (test_pattern_header_parse_fail)
 }
 END_TEST
 
+START_TEST (test_pattern_rle_parse)
+{
+	char rle[] = "b2o$2o$bo!";
+
+	FILE *fp = fmemopen (rle, sizeof (rle), "r");
+
+	int rows = 0, cols = 0;
+	int rc = pattern_rle_parse (NULL, fp, &rows, &cols);
+
+	printf (":: [%d] %d %d\n", rc, rows, cols);
+
+	pattern->grid = grid_new (rows, cols);
+	rewind (fp);
+
+	rc = pattern_rle_parse (pattern, fp, NULL, NULL);
+
+	for (int i = 0; i < pattern->grid->rows; i++)
+		{
+			printf ("%d", GRID_GET (pattern->grid, i, 0));
+
+			for (int j = 1; j < pattern->grid->cols; j++)
+				printf (" %d", GRID_GET (pattern->grid, i, j));
+
+			printf ("\n");
+		}
+
+	fclose (fp);
+}
+END_TEST
+
 Suite *
 make_pattern_suite (void)
 {
@@ -169,6 +200,7 @@ make_pattern_suite (void)
 			0, HEADER_SIZE (header));
 	tcase_add_loop_test (tc_core, test_pattern_header_parse_fail,
 			0, HEADER_SIZE (header_fail));
+	tcase_add_test (tc_core, test_pattern_rle_parse);
 
 	suite_add_tcase (s, tc_core);
 
