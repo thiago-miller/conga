@@ -77,3 +77,10 @@ xfclose (FILE *fp)
 	if (fclose (fp) == EOF)
 		error (1, 1, "Could not close file stream");
 }
+
+void
+xfseek (FILE *fp, long offset, int whence)
+{
+	if (fseek (fp, offset, whence) == EOF)
+		error (1, 1, "fseek failed");
+}
