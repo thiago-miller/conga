@@ -53,3 +53,7 @@ dkms.conf
 
 # Builddir
 builddir/
+
+# Tempdir
+tmp/
+temp/
