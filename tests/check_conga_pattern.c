@@ -77,53 +77,53 @@ START_TEST (test_pattern_header_lex)
 		{
 			switch (token)
 				{
-				case HSEP:
+				case SEP:
 					{
 						ck_assert_int_eq (header[i], ',');
 						i += 2;
 						break;
 					}
-				case HEOL:
+				case EOL:
 					{
 						i += 4;
 						ck_assert_int_eq (header[i], '\n');
 						i++;
 						break;
 					}
-				case HROWS:
+				case ROWS:
 					{
 						ck_assert_int_eq (header[i], 'Y');
 						i += 2;
 						break;
 					}
-				case HCOLS:
+				case COLS:
 					{
 						ck_assert_int_eq (header[i], 'x');
 						i += 2;
 						break;
 					}
-				case HRULE:
+				case RULE:
 					{
 						i += 5;
 						break;
 					}
-				case HEQUAL:
+				case EQUAL:
 					{
 						ck_assert_int_eq (header[i], '=');
 						i += 4;
 						break;
 					}
-				case HNUMBER:
+				case NUMBER:
 					{
 						ck_assert_int_eq (val.num, num[ni++]);
 						break;
 					}
-				case HSTRING:
+				case STRING:
 					{
 						ck_assert_str_eq (val.str, rule);
 						break;
 					}
-				case HMISTERY:
+				case MISTERY:
 					{
 						ck_assert_int_eq (header[i], '+');
 						break;

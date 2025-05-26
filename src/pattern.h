@@ -9,3 +9,6 @@ typedef struct
 	char *rule;
 	Grid *grid;
 } Pattern;
+
+Pattern * pattern_new  (const char *filename);
+void      pattern_free (Pattern *pattern);

@@ -10,42 +10,48 @@
 #include "utils.h"
 #include "rule.h"
 
-typedef union
+enum PatternTokenType
 {
-	int  num;
-	char str[BUFSIZ];
-} PatternHeaderVal;
-
-enum PatternHeaderTokenType
-{
-	HROWS    = 258,
-	HCOLS    = 259,
-	HRULE    = 260,
-	HEQUAL   = 261,
-	HNUMBER  = 262,
-	HSTRING  = 263,
-	HSEP     = 264,
-	HEOL     = 265,
-	HMISTERY = 266
+	ROWS    = 258,
+	COLS    = 259,
+	RULE    = 260,
+	EQUAL   = 261,
+	SEP     = 262,
+	EOL     = 263,
+	DEAD    = 264,
+	ALIVE   = 265,
+	NEWROW  = 266,
+	END     = 267,
+	NUMBER  = 268,
+	STRING  = 269,
+	COUNT   = 270,
+	MISTERY = 271
 };
 
-#define PATTERN_HEADER_NUM_OP 3
-
-static const char *const pattern_header_sym[] =
-{
-	"y", "x", "rule", "=", NULL, NULL, ",", "\n", NULL
-};
-
-#define PATTERN_HEADER_TOKEN_SYM(t) \
-	(pattern_header_sym[(t) - HROWS])
-
-enum PatternHeaderParseState
+enum PatternParseState
 {
 	WAITING_KEY    = 258,
 	WAITING_EQUAL  = 259,
 	WAITING_VALUE  = 260,
 	WAITING_SEP    = 261
 };
+
+typedef union
+{
+	int  num;
+	char str[BUFSIZ];
+} PatternHeaderVal;
+
+static const char *const pattern_sym[] =
+{
+	"y",   "x", "rule", "=", ",",
+	"\\n", "b", "o",    "$", "!"
+};
+
+#define PATTERN_HEADER_NUM_OP 3
+
+#define PATTERN_TOKEN_SYM(t) \
+	(pattern_sym[(t) - ROWS])
 
 static size_t
 pattern_getline (FILE *fp, char **line)
@@ -83,9 +89,9 @@ pattern_header_op_lookup (const char *key)
 {
 	for (int i = 0; i < PATTERN_HEADER_NUM_OP; i++)
 		{
-			if (!strncasecmp (key, pattern_header_sym[i],
-						strlen (pattern_header_sym[i])))
-				return HROWS + i;
+			if (!strncasecmp (key, pattern_sym[i],
+						strlen (pattern_sym[i])))
+				return ROWS + i;
 		}
 
 	return 0;
@@ -116,7 +122,7 @@ pattern_header_lex (const char *header, const char **pp,
 					// ungetc
 					(*pp)--;
 
-					return HNUMBER;
+					return NUMBER;
 				}
 			else if (isalnum (c) || c == '/')
 				{
@@ -143,20 +149,20 @@ pattern_header_lex (const char *header, const char **pp,
 
 					val->str[BUFSIZ - 1] = '\0';
 
-					return HSTRING;
+					return STRING;
 				}
 
 			switch (c)
 				{
-				case '='  : return HEQUAL;
-				case ','  : return HSEP;
+				case '='  : return EQUAL;
+				case ','  : return SEP;
 				case ' '  :
 				case '\t' : break;
-				case '\n' : return HEOL;
+				case '\n' : return EOL;
 				default :
 					{
 						error (0, 0, "Mistery character '%c'", c);
-						return HMISTERY;
+						return MISTERY;
 					}
 				}
 		}
@@ -184,58 +190,58 @@ pattern_header_parse (Pattern *pattern, const char *header)
 
 			switch (token)
 				{
-				case HROWS: case HCOLS: case HRULE:
+				case ROWS: case COLS: case RULE:
 					{
 						switch (mode)
 							{
 							case WAITING_EQUAL: case WAITING_VALUE:
 								{
 									error (0, 0, "'%s' operator has no value",
-											PATTERN_HEADER_TOKEN_SYM (token_op));
+											PATTERN_TOKEN_SYM (token_op));
 									return 0;
 								}
 							case WAITING_SEP:
 								{
 									error (0, 0, "Missing '%s' separator before '%s' operator",
-											PATTERN_HEADER_TOKEN_SYM (HSEP),
-											PATTERN_HEADER_TOKEN_SYM (token));
+											PATTERN_TOKEN_SYM (SEP),
+											PATTERN_TOKEN_SYM (token));
 									return 0;
 								}
 							}
 
-						if (check[token - HROWS])
+						if (check[token - ROWS])
 							{
 								error (0, 0, "'%s' operator is repeated",
-										PATTERN_HEADER_TOKEN_SYM (token));
+										PATTERN_TOKEN_SYM (token));
 								return 0;
 							}
 
-						check[token - HROWS] = 1;
+						check[token - ROWS] = 1;
 						token_op = token;
 						mode = WAITING_EQUAL;
 
 						break;
 					}
-				case HEQUAL:
+				case EQUAL:
 					{
 						switch (mode)
 							{
 							case WAITING_KEY:
 								{
 									error (0, 0, "Missing key operator for '%s'",
-											PATTERN_HEADER_TOKEN_SYM (HEQUAL));
+											PATTERN_TOKEN_SYM (EQUAL));
 									return 0;
 								}
 							case WAITING_VALUE:
 								{
 									error (0, 0, "'%s' is repeated",
-											PATTERN_HEADER_TOKEN_SYM (HEQUAL));
+											PATTERN_TOKEN_SYM (EQUAL));
 									return 0;
 								}
 							case WAITING_SEP:
 								{
 									error (0, 0, "'%s' is misplaced",
-											PATTERN_HEADER_TOKEN_SYM (HEQUAL));
+											PATTERN_TOKEN_SYM (EQUAL));
 									return 0;
 								}
 							}
@@ -244,68 +250,68 @@ pattern_header_parse (Pattern *pattern, const char *header)
 
 						break;
 					}
-				case HNUMBER: case HSTRING:
+				case NUMBER: case STRING:
 					{
 						switch (mode)
 							{
 							case WAITING_KEY: case WAITING_SEP:
 								{
-									if (token == HNUMBER)
+									if (token == NUMBER)
 										error (0, 0, "Number '%d' with no operator",
 												val.num);
-									else if (token == HSTRING)
-										error (0, 0, "String '%s' with no operator",
+									else if (token == STRING)
+										error (0, 0, "Operator misspelled or string '%s' with no operator",
 												val.str);
 									return 0;
 								}
 							case WAITING_EQUAL:
 								{
 									error (0, 0, "Missing '%s': Format key %s value",
-											PATTERN_HEADER_TOKEN_SYM (HEQUAL),
-											PATTERN_HEADER_TOKEN_SYM (HEQUAL));
+											PATTERN_TOKEN_SYM (EQUAL),
+											PATTERN_TOKEN_SYM (EQUAL));
 									return 0;
 								}
 							}
 
-						if (token == HNUMBER && token_op == HRULE)
+						if (token == NUMBER && token_op == RULE)
 							{
 								error (0, 0, "'%s' requires a string",
-										PATTERN_HEADER_TOKEN_SYM (token_op));
+										PATTERN_TOKEN_SYM (token_op));
 								return 0;
 							}
-						else if (token == HSTRING && (token_op == HROWS
-									|| token_op == HCOLS))
+						else if (token == STRING && (token_op == ROWS
+									|| token_op == COLS))
 							{
 								error (0, 0, "'%s' requires a number",
-										PATTERN_HEADER_TOKEN_SYM (token_op));
+										PATTERN_TOKEN_SYM (token_op));
 								return 0;
 							}
 
 						switch (token_op)
 							{
-							case HROWS: pattern->rows = val.num;           break;
-							case HCOLS: pattern->cols = val.num;           break;
-							case HRULE: pattern->rule = xstrdup (val.str); break;
+							case ROWS: pattern->rows = val.num;           break;
+							case COLS: pattern->cols = val.num;           break;
+							case RULE: pattern->rule = xstrdup (val.str); break;
 							}
 
 						mode = WAITING_SEP;
 
 						break;
 					}
-				case HSEP:
+				case SEP:
 					{
 						switch (mode)
 							{
 							case WAITING_KEY: case WAITING_EQUAL:
 								{
 									error (0, 0, "'%s' separator is misplaced",
-											PATTERN_HEADER_TOKEN_SYM (HSEP));
+											PATTERN_TOKEN_SYM (SEP));
 									return 0;
 								}
 							case WAITING_VALUE:
 								{
 									error (0, 0, "Missing value for '%s' operator",
-											PATTERN_HEADER_TOKEN_SYM (token_op));
+											PATTERN_TOKEN_SYM (token_op));
 									return 0;
 								}
 							}
@@ -314,12 +320,12 @@ pattern_header_parse (Pattern *pattern, const char *header)
 
 						break;
 					}
-				case HEOL:
+				case EOL:
 					{
 						seeneol = 1;
 						break;
 					}
-				case HMISTERY:
+				case MISTERY:
 					{
 						error (0, 0, "What is that?");
 						return 0;
@@ -337,26 +343,16 @@ pattern_header_parse (Pattern *pattern, const char *header)
 
 	for (int i = 0; i < PATTERN_HEADER_NUM_OP; i++)
 		{
-			if (!check[i] && (i + HROWS) != HRULE)
+			if (!check[i] && (i + ROWS) != RULE)
 				{
 					error (0, 0, "Missing '%s' operator",
-							pattern_header_sym[i]);
+							pattern_sym[i]);
 					missing = 1;
 				}
 		}
 
 	return !missing;
 }
-
-enum PatternRLETokenType
-{
-	RDEAD    = 258,
-	RALIVE   = 259,
-	RCOUNT   = 260,
-	RNEWROW  = 261,
-	REND     = 262,
-	RMISTERY = 263
-};
 
 static int
 pattern_rle_lex (const char *rle, const char **pp, int *val)
@@ -382,20 +378,20 @@ pattern_rle_lex (const char *rle, const char **pp, int *val)
 					// ungetc
 					(*pp)--;
 
-					return RCOUNT;
+					return COUNT;
 				}
 
 			switch (c)
 				{
-				case 'b' : case 'B':  return RDEAD;
-				case 'o' : case 'O':  return RALIVE;
-				case '$' :            return RNEWROW;
-				case '!' :            return REND;
+				case 'b' : case 'B':  return DEAD;
+				case 'o' : case 'O':  return ALIVE;
+				case '$' :            return NEWROW;
+				case '!' :            return END;
 				case ' ' : case '\t': break;
 				default  :
 					{
 						error (0, 0, "Mistery character '%c'", c);
-						return RMISTERY;
+						return MISTERY;
 					}
 				}
 		}
@@ -423,7 +419,7 @@ OUTER: while (pattern_getline (fp, &rle))
 				{
 					switch (token)
 						{
-							case RALIVE: case RDEAD:
+							case ALIVE: case DEAD:
 								{
 									int old_col = col;
 									col += count;
@@ -432,17 +428,17 @@ OUTER: while (pattern_getline (fp, &rle))
 
 									if (pattern != NULL)
 										for (int j = old_col; j < col; j++)
-											GRID_SET (pattern->grid, row, j, token - RDEAD);
+											GRID_SET (pattern->grid, row, j, token - DEAD);
 
 									count = 1;
 									break;
 								}
-							case RCOUNT:
+							case COUNT:
 								{
 									count = val;
 									break;
 								}
-							case RNEWROW:
+							case NEWROW:
 								{
 									row += count;
 
@@ -455,7 +451,7 @@ OUTER: while (pattern_getline (fp, &rle))
 									count = 1;
 									break;
 								}
-							case REND:
+							case END:
 								{
 									if (count > 1)
 										{
@@ -465,7 +461,7 @@ OUTER: while (pattern_getline (fp, &rle))
 
 									break OUTER;
 								}
-							case RMISTERY:
+							case MISTERY:
 								{
 									error (0, 0, "What is that?");
 									rc = 0; break OUTER;
@@ -495,7 +491,7 @@ pattern_new (const char *filename)
 	FILE *fp = NULL;
 	char *line = NULL;
 	int rows = 0, cols = 0;
-	off_t beacon = 0;
+	long beacon = 0;
 
 	pattern = xcalloc (1, sizeof (Pattern));
 	fp = xfopen (filename, "r");
@@ -505,7 +501,7 @@ pattern_new (const char *filename)
 		error (1, 0, "Failed to read header from '%s'", filename);
 
 	// Set body starting point
-	beacon = ftell (fp);
+	beacon = xftell (fp);
 
 	if (!pattern_header_parse (pattern, line))
 		error (1, 0, "Failed to parse header from '%s'", filename);
