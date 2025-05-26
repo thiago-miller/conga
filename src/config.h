@@ -2,6 +2,7 @@
 
 typedef struct
 {
+	const char *pattern_file;
 	const char *rule;
 	long        seed;
 	int         rows;

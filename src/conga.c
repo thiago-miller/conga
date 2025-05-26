@@ -11,6 +11,7 @@
 #include "rule.h"
 #include "rand.h"
 #include "input.h"
+#include "pattern.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -60,13 +61,39 @@ conga_shutdown (void)
 	render_finish ();
 }
 
-Conga *
-conga_new (const Config *cfg)
+static void
+conga_set_game_from_pattern (Conga *game, const Config *cfg)
 {
-	assert (cfg != NULL);
+	Pattern *pattern = pattern_new (cfg->pattern_file);
 
-	Conga *game = xcalloc (1, sizeof (Conga));
+	const char *rule = pattern->rule != NULL
+		? pattern->rule
+		: cfg->rule;
 
+	int rows = pattern->grid->rows < cfg->rows
+		? cfg->rows
+		: pattern->grid->rows;
+
+	int cols = pattern->grid->cols < cfg->cols
+		? cfg->cols
+		: pattern->grid->cols;
+
+	*game = (Conga) {
+		.grid_cur  = grid_new (rows, cols),
+		.grid_next = grid_new (rows, cols),
+		.rule      = rule_new (rule),
+		.rng       = NULL,
+		.delay     = cfg->delay
+	};
+
+	cell_seed_from_grid (game->grid_cur, pattern->grid);
+
+	pattern_free (pattern);
+}
+
+static void
+conga_set_random_game (Conga *game, const Config *cfg)
+{
 	*game = (Conga) {
 		.grid_cur  = grid_new (cfg->rows, cfg->cols),
 		.grid_next = grid_new (cfg->rows, cfg->cols),
@@ -75,8 +102,22 @@ conga_new (const Config *cfg)
 		.delay     = cfg->delay
 	};
 
-	cell_set_first_generation (game->grid_cur,
+	cell_seed_random_generation (game->grid_cur,
 			game->rng, cfg->live_percent);
+}
+
+Conga *
+conga_new (const Config *cfg)
+{
+	assert (cfg != NULL);
+
+	Conga *game = xcalloc (1, sizeof (Conga));
+
+	if (cfg->pattern_file != NULL)
+		conga_set_game_from_pattern (game, cfg);
+	else
+		conga_set_random_game (game, cfg);
+
 	cell_step_generation (game->grid_cur,
 			game->grid_next, game->rule);
 

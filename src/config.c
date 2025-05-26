@@ -195,13 +195,14 @@ config_apply_args (Config *cfg, int argc, char **argv)
 		{"live-percent", required_argument, 0, 'p'},
 		{"rule",         required_argument, 0, 'R'},
 		{"list-rules",   no_argument,       0, 'L'},
+		{"pattern",      required_argument, 0, 'P'},
 		{0,              0,                 0,  0 }
 	};
 
 	// progname for getopt
 	argv[0] = PROGNAME;
 
-	while ((o = getopt_long (argc, argv, "hVr:c:s:t:p:R:L", opt, &option_index)) >= 0)
+	while ((o = getopt_long (argc, argv, "hVr:c:s:t:p:R:LP:", opt, &option_index)) >= 0)
 		{
 			switch (o)
 				{
@@ -249,6 +250,11 @@ config_apply_args (Config *cfg, int argc, char **argv)
 					{
 						config_print_rules (stdout);
 						exit (EXIT_SUCCESS);
+					}
+				case 'P':
+					{
+						cfg->pattern_file = optarg;
+						break;
 					}
 				case '?':
 				case ':':
