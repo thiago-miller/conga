@@ -11,3 +11,4 @@ char * xstrdup  (const char *str);
 FILE * xfopen   (const char *path, const char *mode);
 void   xfclose  (FILE *fp);
 void   xfseek   (FILE *fp, long offset, int whence);
+long   xftell   (FILE *fp);
