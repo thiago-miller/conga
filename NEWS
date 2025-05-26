@@ -1,3 +1,12 @@
+Version 0.5.0
+
+* Show program version from VCS.
+
+* Fix tick control. Separate generation delay from game loop.
+
+* Add custom pattern which can be uploaded from a Golly/RLE
+  file format.
+
 Version 0.4.0
 
 * Add libcheck for testing.
