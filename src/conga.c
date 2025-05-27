@@ -118,8 +118,8 @@ conga_new (const Config *cfg)
 	else
 		conga_set_random_game (game, cfg);
 
-	cell_step_generation (game->grid_cur,
-			game->grid_next, game->rule);
+	cell_step_generation (game->grid_next,
+			game->grid_cur, game->rule);
 
 	return game;
 }
@@ -136,8 +136,8 @@ static inline void
 conga_update_logic (Conga *game)
 {
 	conga_swap_grids (game);
-	cell_step_generation (game->grid_cur,
-			game->grid_next, game->rule);
+	cell_step_generation (game->grid_next,
+			game->grid_cur, game->rule);
 }
 
 static inline void

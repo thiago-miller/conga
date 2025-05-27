@@ -51,19 +51,19 @@ cell_seed_from_grid (Grid *grid_to, const Grid *grid_from)
 }
 
 void
-cell_step_generation (Grid *grid_cur, Grid *grid_next, Rule *rule)
+cell_step_generation (Grid *grid_next, const Grid *grid_cur, Rule *rule)
 {
-	assert (grid_cur != NULL && grid_next != NULL);
-	assert (grid_cur->rows == grid_next->rows
-			&& grid_cur->cols == grid_next->cols);
+	assert (grid_next != NULL && grid_cur != NULL);
+	assert (grid_next->rows == grid_cur->rows
+			&& grid_next->cols == grid_cur->cols);
 	assert (rule != NULL);
 
 	int neighbors = 0;
 	int alive = 0;
 
-	for (int i = 0; i < grid_cur->rows; i++)
+	for (int i = 0; i < grid_next->rows; i++)
 		{
-			for (int j = 0; j < grid_cur->cols; j++)
+			for (int j = 0; j < grid_next->cols; j++)
 				{
 					alive     = GRID_GET (grid_cur, i, j);
 					neighbors = grid_count_neighbors (grid_cur, i, j);
