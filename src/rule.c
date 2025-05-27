@@ -1,8 +1,8 @@
 #include "rule.h"
 
 #include <stdio.h>
-#include <ctype.h>
 #include <string.h>
+#include <regex.h>
 #include <assert.h>
 #include <error.h>
 #include "wrapper.h"
@@ -15,21 +15,6 @@ typedef int RuleTable[STATES][NEIGHBORS];
 struct _Rule
 {
 	RuleTable table;
-};
-
-enum RuleTokenType
-{
-	SEP       = 258,
-	BORN      = 259,
-	SURVIVE   = 260,
-	NUMBER    = 261,
-	MISTERY   = 262
-};
-
-enum RuleParseState
-{
-	WAITING_OP      = 258,
-	READING_NUMBERS = 259
 };
 
 const RuleAlias rule_aliases[] =
@@ -70,140 +55,93 @@ rule_get_rule_from_alias (const char *alias)
 }
 
 static int
-rule_lex (const char *str, const char **pp, int *val)
-{
-	if (str != NULL)
-		*pp = str;
-
-	if (**pp == '\0')
-		return 0;
-
-	char c = *(*pp)++;
-
-	if (isdigit (c))
-		{
-			if (val != NULL)
-				*val = c - '0';
-			return NUMBER;
-		}
-
-	switch (c)
-		{
-		case 'b': case 'B': return BORN;
-		case 's': case 'S': return SURVIVE;
-		case '/': return SEP;
-		default :
-			{
-				error (0, 0, "Mistery character '%c'", c);
-				return MISTERY;
-			}
-		}
-}
-
-static int
 rule_parse_into_table (RuleTable table, const char *str)
 {
-	// RuleParserState
-	int mode = WAITING_OP;
+#define NUM_PATTERN 3
 
-	// B/S index
-	int state = 0;
+	regex_t    preg[NUM_PATTERN];
+	regmatch_t pmatch[NUM_PATTERN];
+	regoff_t   off, len;
 
-	// avoid B/S and / duplication and ensure
-	// that they will be counted
-	int check[STATES + 1] = {0};
-	char op[STATES] = {'B', 'S'};
+	char bs_values[STATES][NEIGHBORS + 1] = {0};
 
-	const char *p = NULL;
-	int val = 0;
+	char err[128] = {0};
+	int i = 0, j = 0, i_match = 0;
+	int rc = 0, rule_valid = 1;
+	size_t neighbors = 0;
 
-	if (table != NULL)
-		memset (table, 0, sizeof (RuleTable));
+	char pattern[NUM_PATTERN][32] =
+	{
+		"^B([0-8]*)/S([0-8]*)$",
+		"^([0-8]*)/([0-8]*)$",
+		"^S([0-8]*)/B([0-8]*)$"
+	};
 
-	for (int token = rule_lex (str, &p, &val); token;
-			token = rule_lex (NULL, &p, &val))
+	for (i = 0; i < NUM_PATTERN; i++)
 		{
-			switch (token)
+			rc = regcomp (&preg[i], pattern[i],
+					REG_EXTENDED|REG_ICASE);
+			if (rc != 0)
 				{
-				case BORN:
-				case SURVIVE:
-					{
-						state = token - BORN;
-
-						if (check[state])
-							{
-								error (0, 0, "'%c' operator is repeated",
-										op[state]);
-								return 0;
-							}
-
-						if (mode != WAITING_OP)
-							{
-								error (0, 0, "'%c' operator does not appear after the / separator",
-										op[state]);
-								return 0;
-							}
-
-						mode = READING_NUMBERS;
-						check[state] = 1;
-
-						break;
-					}
-				case SEP:
-					{
-						if (check[2])
-							{
-								error (0, 0, "'/' separator is repeated");
-								return 0;
-							}
-
-						if (mode == WAITING_OP)
-							{
-								error (0, 0, "'/' separator appears at the beginning");
-								return 0;
-							}
-
-						mode = WAITING_OP;
-						check[2] = 1;
-
-						break;
-					}
-				case NUMBER:
-					{
-						if (mode != READING_NUMBERS)
-							{
-								error (0, 0, "Number without operator 'B' or 'S'");
-								return 0;
-							}
-
-						if (!(val >= 0 && val < NEIGHBORS))
-							{
-								error (0, 0, "Number '%d' not at range [0, %d)",
-										val, NEIGHBORS);
-								return 0;
-							}
-
-						if (table != NULL)
-							table[state][val] = 1;
-
-						break;
-					}
-				case MISTERY:
-					{
-						error (0, 0, "What is that?");
-						return 0;
-					}
+					regerror (rc, &preg[i], err, 128);
+					error (1, 0, "regcomp '%s' failed with '%s'",
+							pattern[i], err);
 				}
 		}
 
-	for (int i = 0; i < STATES; i++)
-		if (!check[i])
-			{
-				error (0, 0, "Missing operator '%c'", op[i]);
-				return 0;
-			}
+	i_match = -1;
 
-	return 1;
+	for (i = 0; i < NUM_PATTERN; i++)
+		{
+			rc = regexec (&preg[i], str, NUM_PATTERN, pmatch, 0);
+			if (rc == 0)
+				{
+					i_match = i;
+					break;
+				}
+		}
+
+	if (i_match == -1)
+		{
+			error (0, 0, "Invalid rule format '%s'", str);
+			rule_valid = 0;
+			goto __CLEAN;
+		}
+
+	for (i = 0; i < STATES; i++)
+		{
+			off = pmatch[i + 1].rm_so;
+			len = pmatch[i + 1].rm_eo - pmatch[i + 1].rm_so;
+
+			if (len > 9)
+				{
+					error (0, 0, "Invalid rule format '%s'", str);
+					rule_valid = 0;
+					goto __CLEAN;
+				}
+
+			// i_match == 2 | SyBx
+			strncpy (bs_values[i_match == 2 ? !i : i],
+					str + off, len);
+		}
+
+	if (table == NULL)
+		goto __CLEAN;
+
+	for (i = 0; i < STATES; i++)
+		{
+			neighbors = strlen (bs_values[i]);
+			for (j = 0; j < neighbors; j++)
+				table[i][bs_values[i][j] - '0'] = 1;
+		}
+
+__CLEAN:
+	for (i = 0; i < NUM_PATTERN; i++)
+		regfree (&preg[i]);
+
+#undef NUM_PATTERN
+
+	return rule_valid;
 }
 
 Rule *

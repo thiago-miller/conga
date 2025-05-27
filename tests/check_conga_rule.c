@@ -3,28 +3,6 @@
 #include <stdio.h>
 #include "../src/rule.c"
 
-START_TEST (test_rule_lex)
-{
-	const char str[] = "BS/01234X";
-	const char *p = NULL;
-	int val = 0;
-
-	for (int token = rule_lex (str, &p, &val), i = 0; token;
-			token = rule_lex (NULL, &p, &val), i++)
-		{
-			switch (token)
-				{
-				case BORN:    ck_assert_int_eq (str[i], 'B');       break;
-				case SURVIVE: ck_assert_int_eq (str[i], 'S');       break;
-				case SEP:     ck_assert_int_eq (str[i], '/');       break;
-				case NUMBER:  ck_assert_int_eq (str[i] - '0', val); break;
-				case MISTERY: ck_assert_int_eq (str[i], 'X');       break;
-				default:      ck_abort ();
-				}
-		}
-}
-END_TEST
-
 START_TEST (test_parse_into_table)
 {
 	RuleTable table;
@@ -115,7 +93,6 @@ make_rule_suite (void)
 	/* Core test case */
 	tc_core = tcase_create ("Core");
 
-	tcase_add_test (tc_core, test_rule_lex);
 	tcase_add_test (tc_core, test_parse_into_table);
 	tcase_add_test (tc_core, test_parse_into_table_fail);
 	tcase_add_test (tc_core, test_rule_new_and_free);
