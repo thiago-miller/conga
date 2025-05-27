@@ -12,46 +12,13 @@
 
 enum PatternTokenType
 {
-	ROWS    = 258,
-	COLS    = 259,
-	RULE    = 260,
-	EQUAL   = 261,
-	SEP     = 262,
-	EOL     = 263,
 	DEAD    = 264,
 	ALIVE   = 265,
 	NEWROW  = 266,
 	END     = 267,
-	NUMBER  = 268,
-	STRING  = 269,
 	COUNT   = 270,
 	MISTERY = 271
 };
-
-enum PatternParseState
-{
-	WAITING_KEY    = 258,
-	WAITING_EQUAL  = 259,
-	WAITING_VALUE  = 260,
-	WAITING_SEP    = 261
-};
-
-typedef union
-{
-	int  num;
-	char str[BUFSIZ];
-} PatternHeaderVal;
-
-static const char *const pattern_sym[] =
-{
-	"y",   "x", "rule", "=", ",",
-	"\\n", "b", "o",    "$", "!"
-};
-
-#define PATTERN_HEADER_NUM_OP 3
-
-#define PATTERN_TOKEN_SYM(t) \
-	(pattern_sym[(t) - ROWS])
 
 static size_t
 pattern_getline (FILE *fp, char **line)
@@ -84,274 +51,25 @@ pattern_getline (FILE *fp, char **line)
 	return 0;
 }
 
-static const int
-pattern_header_op_lookup (const char *key)
-{
-	for (int i = 0; i < PATTERN_HEADER_NUM_OP; i++)
-		{
-			if (!strncasecmp (key, pattern_sym[i],
-						strlen (pattern_sym[i])))
-				return ROWS + i;
-		}
-
-	return 0;
-}
-
-static int
-pattern_header_lex (const char *header, const char **pp,
-		PatternHeaderVal *val)
-{
-	if (header != NULL)
-		*pp = header;
-
-	for (char c = *(*pp)++; c != '\0'; c = *(*pp)++)
-		{
-			if (isdigit (c))
-				{
-					int num = 0;
-
-					do
-					{
-						num = 10 * num + c - '0';
-					}
-					while (isdigit (c = *(*pp)++));
-
-					if (val != NULL)
-						val->num = num;
-
-					// ungetc
-					(*pp)--;
-
-					return NUMBER;
-				}
-			else if (isalnum (c) || c == '/')
-				{
-					char key[BUFSIZ] = {0};
-					int i = 0, token = 0;
-
-					do
-					{
-						key[i++] = c;
-						c = *(*pp)++;
-					}
-					while (i < BUFSIZ && (isalnum (c) || c == '/'));
-
-					key[BUFSIZ - 1] = '\0';
-
-					// ungetc
-					(*pp)--;
-
-					if ((token = pattern_header_op_lookup (key)))
-						return token;
-
-					if (val != NULL)
-						strncpy (val->str, key, BUFSIZ);
-
-					val->str[BUFSIZ - 1] = '\0';
-
-					return STRING;
-				}
-
-			switch (c)
-				{
-				case '='  : return EQUAL;
-				case ','  : return SEP;
-				case ' '  :
-				case '\t' : break;
-				case '\n' : return EOL;
-				default :
-					{
-						error (0, 0, "Mistery character '%c'", c);
-						return MISTERY;
-					}
-				}
-		}
-
-	return 0;
-}
-
 static int
 pattern_header_parse (Pattern *pattern, const char *header)
 {
-	int mode = WAITING_KEY;
-	int seeneol = 0;
+	int x = 0, y = 0;
+	char rule[64] = {0};
 
-	const char *p = NULL;
-	PatternHeaderVal val = {0};
-
-	int check[PATTERN_HEADER_NUM_OP] = {0};
-	int token_op = 0;
-
-	for (int token = pattern_header_lex (header, &p, &val); token;
-			token = pattern_header_lex (NULL, &p, &val))
+	if (sscanf (header, "x = %d, y = %d, rule = %63s", &x, &y, rule) == 3
+			|| sscanf (header, "x = %d, y = %d", &x, &y) == 2)
 		{
-			if (seeneol)
-				break;
-
-			switch (token)
-				{
-				case ROWS: case COLS: case RULE:
-					{
-						switch (mode)
-							{
-							case WAITING_EQUAL: case WAITING_VALUE:
-								{
-									error (0, 0, "'%s' operator has no value",
-											PATTERN_TOKEN_SYM (token_op));
-									return 0;
-								}
-							case WAITING_SEP:
-								{
-									error (0, 0, "Missing '%s' separator before '%s' operator",
-											PATTERN_TOKEN_SYM (SEP),
-											PATTERN_TOKEN_SYM (token));
-									return 0;
-								}
-							}
-
-						if (check[token - ROWS])
-							{
-								error (0, 0, "'%s' operator is repeated",
-										PATTERN_TOKEN_SYM (token));
-								return 0;
-							}
-
-						check[token - ROWS] = 1;
-						token_op = token;
-						mode = WAITING_EQUAL;
-
-						break;
-					}
-				case EQUAL:
-					{
-						switch (mode)
-							{
-							case WAITING_KEY:
-								{
-									error (0, 0, "Missing key operator for '%s'",
-											PATTERN_TOKEN_SYM (EQUAL));
-									return 0;
-								}
-							case WAITING_VALUE:
-								{
-									error (0, 0, "'%s' is repeated",
-											PATTERN_TOKEN_SYM (EQUAL));
-									return 0;
-								}
-							case WAITING_SEP:
-								{
-									error (0, 0, "'%s' is misplaced",
-											PATTERN_TOKEN_SYM (EQUAL));
-									return 0;
-								}
-							}
-
-						mode = WAITING_VALUE;
-
-						break;
-					}
-				case NUMBER: case STRING:
-					{
-						switch (mode)
-							{
-							case WAITING_KEY: case WAITING_SEP:
-								{
-									if (token == NUMBER)
-										error (0, 0, "Number '%d' with no operator",
-												val.num);
-									else if (token == STRING)
-										error (0, 0, "Operator misspelled or string '%s' with no operator",
-												val.str);
-									return 0;
-								}
-							case WAITING_EQUAL:
-								{
-									error (0, 0, "Missing '%s': Format key %s value",
-											PATTERN_TOKEN_SYM (EQUAL),
-											PATTERN_TOKEN_SYM (EQUAL));
-									return 0;
-								}
-							}
-
-						if (token == NUMBER && token_op == RULE)
-							{
-								error (0, 0, "'%s' requires a string",
-										PATTERN_TOKEN_SYM (token_op));
-								return 0;
-							}
-						else if (token == STRING && (token_op == ROWS
-									|| token_op == COLS))
-							{
-								error (0, 0, "'%s' requires a number",
-										PATTERN_TOKEN_SYM (token_op));
-								return 0;
-							}
-
-						switch (token_op)
-							{
-							case ROWS: pattern->rows = val.num;           break;
-							case COLS: pattern->cols = val.num;           break;
-							case RULE: pattern->rule = xstrdup (val.str); break;
-							}
-
-						mode = WAITING_SEP;
-
-						break;
-					}
-				case SEP:
-					{
-						switch (mode)
-							{
-							case WAITING_KEY: case WAITING_EQUAL:
-								{
-									error (0, 0, "'%s' separator is misplaced",
-											PATTERN_TOKEN_SYM (SEP));
-									return 0;
-								}
-							case WAITING_VALUE:
-								{
-									error (0, 0, "Missing value for '%s' operator",
-											PATTERN_TOKEN_SYM (token_op));
-									return 0;
-								}
-							}
-
-						mode = WAITING_KEY;
-
-						break;
-					}
-				case EOL:
-					{
-						seeneol = 1;
-						break;
-					}
-				case MISTERY:
-					{
-						error (0, 0, "What is that?");
-						return 0;
-					}
-				}
+			pattern->cols = x;
+			pattern->rows = y;
+			pattern->rule = strlen (rule) ? xstrdup (rule) : NULL;
+			return 1;
 		}
-
-	if (mode != WAITING_SEP)
+	else
 		{
-			error (0, 0, "Premature stop");
+			error (0, 0, "Invalid header '%s'", header);
 			return 0;
 		}
-
-	int missing = 0;
-
-	for (int i = 0; i < PATTERN_HEADER_NUM_OP; i++)
-		{
-			if (!check[i] && (i + ROWS) != RULE)
-				{
-					error (0, 0, "Missing '%s' operator",
-							pattern_sym[i]);
-					missing = 1;
-				}
-		}
-
-	return !missing;
 }
 
 static int
