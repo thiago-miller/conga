@@ -19,16 +19,6 @@ enum PatternTokenType
 	MISTERY = 271
 };
 
-{
-
-
-				{
-					break;
-				}
-		}
-
-}
-
 static int
 pattern_header_parse (Pattern *pattern, const char *header)
 {
@@ -84,6 +74,7 @@ pattern_rle_lex (const char *rle, const char **pp, int *val)
 				case '$'  :            return NEWROW;
 				case '!'  :            return END;
 				case ' '  : case '\t':
+				case '\v' : case '\f':
 				case '\n' : case '\r': break;
 				default   :
 					{
@@ -106,9 +97,9 @@ pattern_rle_parse (Pattern *pattern, const char *rle,
 	int row = 0, col = 0;
 	int max_col = 0;
 	int count = 1;
-	int rc = 1;
+	int rc = 1, break_all = 0;
 
-OUTER: for (int token = pattern_rle_lex (rle, &p, &val); token;
+	for (int token = pattern_rle_lex (rle, &p, &val); token;
 			token = pattern_rle_lex (NULL, &p, &val))
 		{
 			switch (token)
@@ -153,14 +144,20 @@ OUTER: for (int token = pattern_rle_lex (rle, &p, &val); token;
 									rc = 0;
 								}
 
-							break OUTER;
+							break_all = 1;
+							break;
 						}
 					case MISTERY:
 						{
 							error (0, 0, "What is that?");
-							rc = 0; break OUTER;
+							rc = 0;
+							break_all = 1;
+							break;
 						}
 				}
+
+			if (break_all)
+				break;
 		}
 
 	if (rows != NULL)
