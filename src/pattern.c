@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
-#include <errno.h>
 #include <error.h>
 #include <assert.h>
 #include "wrapper.h"
@@ -20,35 +19,14 @@ enum PatternTokenType
 	MISTERY = 271
 };
 
-static size_t
-pattern_getline (FILE *fp, char **line)
 {
-	size_t len = 0;
-	size_t nread = 0;
 
-	while (!feof (fp))
-		{
-			nread = getline (line, &len, fp);
 
-			// End of file or error
-			if (nread == EOF)
 				{
-					if (errno)
-						error (1, 1, "Failed to getline");
 					break;
 				}
-
-			chomp (*line);
-			trim (*line);
-
-			// Line is empty or a comment
-			if (**line == '\0' || **line == '#')
-				continue;
-
-			return 1;
 		}
 
-	return 0;
 }
 
 static int
@@ -101,12 +79,13 @@ pattern_rle_lex (const char *rle, const char **pp, int *val)
 
 			switch (c)
 				{
-				case 'b' : case 'B':  return DEAD;
-				case 'o' : case 'O':  return ALIVE;
-				case '$' :            return NEWROW;
-				case '!' :            return END;
-				case ' ' : case '\t': break;
-				default  :
+				case 'b'  : case 'B':  return DEAD;
+				case 'o'  : case 'O':  return ALIVE;
+				case '$'  :            return NEWROW;
+				case '!'  :            return END;
+				case ' '  : case '\t':
+				case '\n' : case '\r': break;
+				default   :
 					{
 						error (0, 0, "Mistery character '%c'", c);
 						return MISTERY;
@@ -118,11 +97,10 @@ pattern_rle_lex (const char *rle, const char **pp, int *val)
 }
 
 static int
-pattern_rle_parse (Pattern *pattern, FILE *fp,
+pattern_rle_parse (Pattern *pattern, const char *rle,
 		int *rows, int *cols)
 {
 	const char *p = NULL;
-	char *rle = NULL;
 	int val = 0;
 
 	int row = 0, col = 0;
@@ -130,60 +108,57 @@ pattern_rle_parse (Pattern *pattern, FILE *fp,
 	int count = 1;
 	int rc = 1;
 
-OUTER: while (pattern_getline (fp, &rle))
+OUTER: for (int token = pattern_rle_lex (rle, &p, &val); token;
+			token = pattern_rle_lex (NULL, &p, &val))
 		{
-			for (int token = pattern_rle_lex (rle, &p, &val); token;
-					token = pattern_rle_lex (NULL, &p, &val))
+			switch (token)
 				{
-					switch (token)
+					case ALIVE: case DEAD:
 						{
-							case ALIVE: case DEAD:
+							int old_col = col;
+							col += count;
+
+							assert (pattern == NULL || pattern->grid->cols >= col);
+
+							if (pattern != NULL)
+								for (int j = old_col; j < col; j++)
+									GRID_SET (pattern->grid, row, j, token - DEAD);
+
+							count = 1;
+							break;
+						}
+					case COUNT:
+						{
+							count = val;
+							break;
+						}
+					case NEWROW:
+						{
+							row += count;
+
+							assert (pattern == NULL || pattern->grid->rows >= row);
+
+							if (max_col < col)
+								max_col = col;
+
+							col = 0;
+							count = 1;
+							break;
+						}
+					case END:
+						{
+							if (count > 1)
 								{
-									int old_col = col;
-									col += count;
-
-									assert (pattern == NULL || pattern->grid->cols >= col);
-
-									if (pattern != NULL)
-										for (int j = old_col; j < col; j++)
-											GRID_SET (pattern->grid, row, j, token - DEAD);
-
-									count = 1;
-									break;
+									error (0, 0, "Count '%d' misplaced", count);
+									rc = 0;
 								}
-							case COUNT:
-								{
-									count = val;
-									break;
-								}
-							case NEWROW:
-								{
-									row += count;
 
-									assert (pattern == NULL || pattern->grid->rows >= row);
-
-									if (max_col < col)
-										max_col = col;
-
-									col = 0;
-									count = 1;
-									break;
-								}
-							case END:
-								{
-									if (count > 1)
-										{
-											error (0, 0, "Count '%d' misplaced", count);
-											rc = 0;
-										}
-
-									break OUTER;
-								}
-							case MISTERY:
-								{
-									error (0, 0, "What is that?");
-									rc = 0; break OUTER;
-								}
+							break OUTER;
+						}
+					case MISTERY:
+						{
+							error (0, 0, "What is that?");
+							rc = 0; break OUTER;
 						}
 				}
 		}
@@ -196,8 +171,38 @@ OUTER: while (pattern_getline (fp, &rle))
 			? col
 			: max_col;
 
-	xfree (rle);
 	return rc;
+}
+
+static int
+pattern_get_header_and_body (char *buf, const char **h, const char **b)
+{
+	char *p = NULL;
+	char *s = NULL;
+
+	s = buf;
+
+	while ((p = strchr (s, '\n')) != NULL)
+		{
+			*p = '\0';
+
+			chomp (s);
+			trim (s);
+
+			if (*s != '\0' && *s != '#')
+				break;
+
+			s = p + 1;
+		}
+
+	// Empty or truncated file
+	if (p == NULL || *(p + 1) == '\0')
+		return 0;
+
+	*h = s;
+	*b = (p + 1);
+
+	return 1;
 }
 
 Pattern *
@@ -206,29 +211,27 @@ pattern_new (const char *filename)
 	assert (filename != NULL);
 
 	Pattern *pattern = NULL;
-	FILE *fp = NULL;
-	char *line = NULL;
+	const char *header = NULL, *body = NULL;
+	char *buf = NULL;
 	int rows = 0, cols = 0;
-	long beacon = 0;
 
 	pattern = xcalloc (1, sizeof (Pattern));
-	fp = xfopen (filename, "r");
+	buf = file_slurp (filename);
 
 	// Get header
-	if (!pattern_getline (fp, &line))
-		error (1, 0, "Failed to read header from '%s'", filename);
+	if (!pattern_get_header_and_body (buf, &header, &body))
+		error (1, 0, "Empty or truncated file '%s'", filename);
 
-	// Set body starting point
-	beacon = xftell (fp);
-
-	if (!pattern_header_parse (pattern, line))
+	// Parse header
+	if (!pattern_header_parse (pattern, header))
 		error (1, 0, "Failed to parse header from '%s'", filename);
 
+	// Parse rule
 	if (pattern->rule != NULL && !rule_is_valid (pattern->rule))
 		error (1, 0, "Invalid rule or alias '%s'", pattern->rule);
 
 	// Parse and get grid dimensions
-	if (!pattern_rle_parse (NULL, fp, &rows, &cols))
+	if (!pattern_rle_parse (NULL, body, &rows, &cols))
 		error (1, 0, "Failed to parse RLE string from '%s'", filename);
 
 	if (rows < pattern->rows)
@@ -239,14 +242,10 @@ pattern_new (const char *filename)
 
 	pattern->grid = grid_new (rows, cols);
 
-	// Rewind body
-	xfseek (fp, beacon, SEEK_SET);
-
 	// Set the grid with the pattern
-	assert (pattern_rle_parse (pattern, fp, NULL, NULL));
+	assert (pattern_rle_parse (pattern, body, NULL, NULL));
 
-	xfree (line);
-	xfclose (fp);
+	xfree (buf);
 
 	return pattern;
 }
