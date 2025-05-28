@@ -2,7 +2,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <error.h>
 #include <assert.h>
+#include "wrapper.h"
 
 void
 shuffle (int *vet, int nmemb, Rand *rng)
@@ -78,4 +80,28 @@ char *
 trim (char *str)
 {
 	return trimc (str, ' ');
+}
+
+char *
+file_slurp (const char *filename)
+{
+	FILE *fp = NULL;
+	char *buf = NULL;
+	long size = 0, ret = 0;
+
+	fp = xfopen (filename, "r");
+
+	xfseek (fp, 0L, SEEK_END);
+	size = xftell (fp);
+	buf = xmalloc (size + 1);
+
+	xfseek (fp, 0L, SEEK_SET);
+	ret = fread (buf, sizeof (char), size, fp);
+	if (ret != size)
+		error (1, 0, "fread failed");
+
+	buf[size] = '\0';
+	xfclose (fp);
+
+	return buf;
 }
