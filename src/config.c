@@ -32,11 +32,12 @@ config_print_usage (FILE *fp)
 	fprintf (fp,
 		"%s %s\n"
 		"\n"
-		"Usage: %s [-h] [-R STR] [-r INT] [-c INT] [-t INT] [-p FLOAT] [-s INT]\n"
+		"Usage: %s [-hV] [-R STR] [-r INT] [-c INT] [-t INT] [-p FLOAT] [-s INT]\n"
 		"       %*c [-P [STR|FILE]] [--list-rules] [--list-patterns]\n"
 		"\n"
 		"Options:\n"
 		"   -h, --help           Show help options\n"
+		"   -V, --version        Show current version\n"
 		"   -r, --rows           Number of grid rows [%d]\n"
 		"   -c, --cols           Number of grid cols [%d]\n"
 		"   -s, --seed           Seed for reproducibility [time(NULL)]\n"
