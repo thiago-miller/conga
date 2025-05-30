@@ -34,7 +34,7 @@ const PatternDef pattern_defs[] =
 		"bo2bo$4o$4o$ob3o!"
 	},
 	{
-		{5, 10, "B3/23"},
+		{5, 10, "B3/S23"},
 		"pulsar",
 		"Period-3 oscillator; common example of a large oscillator",
 		"b3o3b3o$bo2bo2bo$bo2bo2bo$bo2bo2bo$b3o3b3o!"
