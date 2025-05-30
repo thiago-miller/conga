@@ -6,7 +6,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <sys/select.h>
-#include <error.h>
+#include "error.h"
 
 static struct termios saved_attributes;
 static int initialized = 0;

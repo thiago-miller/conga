@@ -4,7 +4,7 @@
 #include <string.h>
 #include <regex.h>
 #include <assert.h>
-#include <error.h>
+#include "error.h"
 #include "wrapper.h"
 
 #define STATES    2

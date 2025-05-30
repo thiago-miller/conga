@@ -1,7 +1,7 @@
 #include "wrapper.h"
 
 #include <string.h>
-#include <error.h>
+#include "error.h"
 
 void *
 xmalloc (size_t size)
