@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
-#include <error.h>
 #include <assert.h>
 #include "wrapper.h"
+#include "error.h"
 #include "utils.h"
 #include "rule.h"
 
@@ -19,25 +19,57 @@ enum PatternTokenType
 	MISTERY = 271
 };
 
-static int
-pattern_header_parse (Pattern *pattern, const char *header)
+const PatternDef pattern_defs[] =
 {
-	int x = 0, y = 0;
-	char rule[64] = {0};
+	{
+		{3, 3, "B3/S23"},
+		"glider",
+		"Smallest moving pattern; moves diagonally",
+		"bob$2bo$3o!"
+	},
+	{
+		{4, 5, "B3/S23"},
+		"lightweight_spaceship",
+		"Moves horizontally; smallest spaceship after glider",
+		"bo2bo$4o$4o$ob3o!"
+	},
+	{
+		{5, 10, "B3/23"},
+		"pulsar",
+		"Period-3 oscillator; common example of a large oscillator",
+		"b3o3b3o$bo2bo2bo$bo2bo2bo$bo2bo2bo$b3o3b3o!"
+	},
+	{
+		{9, 42, "B3/S23"},
+		"gosper_glider_gun",
+		"First known glider gun; emits gliders infinitely",
+		"24bo11b$22bobo11b$12bo10bobo12b$11bo11bob2o11b$2bo8b5o8bo14b$bob"
+		"o7bo5bo7bobo12b$bo2bo6bo7bo6bo2bo12b$2b2o7bo5bo7b2o13b$10b5o!"
+	},
+	{
+		{6, 4, "B3/S23"},
+		"tumbler",
+		"Period-2 oscillator; resembles tumbling motion",
+		"b3o$b3o$b3o$3o$3o$3o!"
+	},
+	{ {}, NULL, NULL, NULL }
+};
 
-	if (sscanf (header, "x = %d, y = %d, rule = %63s", &x, &y, rule) == 3
-			|| sscanf (header, "x = %d, y = %d", &x, &y) == 2)
+static const PatternDef *
+pattern_get_def_from_alias (const char *alias)
+{
+	const PatternDef *def = NULL;
+
+	for (const PatternDef *di = pattern_defs; di->name != NULL; di++)
 		{
-			pattern->cols = x;
-			pattern->rows = y;
-			pattern->rule = strlen (rule) ? xstrdup (rule) : NULL;
-			return 1;
+			if (strcasecmp (alias, di->name) == 0)
+				{
+					def = di;
+					break;
+				}
 		}
-	else
-		{
-			error (0, 0, "Invalid header '%s'", header);
-			return 0;
-		}
+
+	return def;
 }
 
 static int
@@ -85,6 +117,27 @@ pattern_rle_lex (const char *rle, const char **pp, int *val)
 		}
 
 	return 0;
+}
+
+static int
+pattern_rle_header_parse (Pattern *pattern, const char *h)
+{
+	int x = 0, y = 0;
+	char rule[64] = {0};
+
+	if (sscanf (h, "x = %d, y = %d, rule = %63s", &x, &y, rule) == 3
+			|| sscanf (h, "x = %d, y = %d", &x, &y) == 2)
+		{
+			pattern->header.cols = x;
+			pattern->header.rows = y;
+			pattern->header.rule = strlen (rule) ? xstrdup (rule) : NULL;
+			return 1;
+		}
+	else
+		{
+			error (0, 0, "Invalid header '%s'", h);
+			return 0;
+		}
 }
 
 static int
@@ -202,47 +255,71 @@ pattern_get_header_and_body (char *buf, const char **h, const char **b)
 	return 1;
 }
 
-Pattern *
-pattern_new (const char *filename)
+static void
+pattern_parse_from_file (Pattern *pattern, const char *filename)
 {
-	assert (filename != NULL);
-
-	Pattern *pattern = NULL;
-	const char *header = NULL, *body = NULL;
+	const char *h = NULL, *b = NULL;
 	char *buf = NULL;
 	int rows = 0, cols = 0;
 
-	pattern = xcalloc (1, sizeof (Pattern));
 	buf = file_slurp (filename);
 
 	// Get header
-	if (!pattern_get_header_and_body (buf, &header, &body))
+	if (!pattern_get_header_and_body (buf, &h, &b))
 		error (1, 0, "Empty or truncated file '%s'", filename);
 
 	// Parse header
-	if (!pattern_header_parse (pattern, header))
+	if (!pattern_rle_header_parse (pattern, h))
 		error (1, 0, "Failed to parse header from '%s'", filename);
 
 	// Parse rule
-	if (pattern->rule != NULL && !rule_is_valid (pattern->rule))
-		error (1, 0, "Invalid rule or alias '%s'", pattern->rule);
+	if (pattern->header.rule != NULL && !rule_is_valid (pattern->header.rule))
+		error (1, 0, "Invalid rule or alias '%s'", pattern->header.rule);
 
 	// Parse and get grid dimensions
-	if (!pattern_rle_parse (NULL, body, &rows, &cols))
+	if (!pattern_rle_parse (NULL, b, &rows, &cols))
 		error (1, 0, "Failed to parse RLE string from '%s'", filename);
 
-	if (rows < pattern->rows)
-		rows = pattern->rows;
+	if (rows < pattern->header.rows)
+		rows = pattern->header.rows;
 
-	if (cols < pattern->cols)
-		cols = pattern->cols;
+	if (cols < pattern->header.cols)
+		cols = pattern->header.cols;
 
 	pattern->grid = grid_new (rows, cols);
 
 	// Set the grid with the pattern
-	assert (pattern_rle_parse (pattern, body, NULL, NULL));
+	assert (pattern_rle_parse (pattern, b, NULL, NULL));
 
 	xfree (buf);
+}
+
+static void
+pattern_parse_from_def (Pattern *pattern, const PatternDef *def)
+{
+	pattern->header.rows = def->header.rows,
+	pattern->header.cols = def->header.cols,
+	pattern->header.rule = xstrdup (def->header.rule);
+
+	pattern->grid = grid_new (def->header.rows, def->header.cols);
+
+	assert (pattern_rle_parse (pattern, def->rle, NULL, NULL));
+}
+
+Pattern *
+pattern_new (const char *pattern_str)
+{
+	assert (pattern_str != NULL);
+
+	Pattern *pattern = NULL;
+	const PatternDef *def = NULL;
+
+	pattern = xcalloc (1, sizeof (Pattern));
+
+	if ((def = pattern_get_def_from_alias (pattern_str)) == NULL)
+		pattern_parse_from_file (pattern, pattern_str);
+	else
+		pattern_parse_from_def (pattern, def);
 
 	return pattern;
 }
@@ -253,8 +330,8 @@ pattern_free (Pattern *pattern)
 	if (pattern == NULL)
 		return;
 
+	xfree ((char *) pattern->header.rule);
 	grid_free (pattern->grid);
-	xfree (pattern->rule);
 
 	xfree (pattern);
 }

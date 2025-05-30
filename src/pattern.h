@@ -4,12 +4,26 @@
 
 typedef struct
 {
-	int   rows;
-	int   cols;
-	char *rule;
-	Grid *grid;
+	int            rows;
+	int            cols;
+	const char    *rule;
+} PatternHeader;
+
+typedef struct
+{
+	PatternHeader  header;
+	Grid          *grid;
 } Pattern;
 
+typedef struct
+{
+	PatternHeader  header;
+	const char    *name;
+	const char    *desc;
+	const char    *rle;
+} PatternDef;
 
-Pattern * pattern_new  (const char *filename);
+extern const PatternDef pattern_defs[];
+
+Pattern * pattern_new  (const char *pattern_str);
 void      pattern_free (Pattern *pattern);

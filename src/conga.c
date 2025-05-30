@@ -66,8 +66,8 @@ conga_set_game_from_pattern (Conga *game, const Config *cfg)
 {
 	Pattern *pattern = pattern_new (cfg->pattern_file);
 
-	const char *rule = pattern->rule != NULL
-		? pattern->rule
+	const char *rule = pattern->header.rule != NULL
+		? pattern->header.rule
 		: cfg->rule;
 
 	int rows = pattern->grid->rows < cfg->rows
