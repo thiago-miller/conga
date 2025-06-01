@@ -1,0 +1,114 @@
+[
+	{
+		"name": "glider",
+		"desc": "Classic C/4 spaceship gliding diagonally",
+		"rows": 3,
+		"cols": 3,
+		"rule": "B3/S23",
+		"rle": "bo$2bo$3o!"
+	},
+	{
+		"name": "lwss",
+		"desc": "Lightweight C/2 spaceship that moves to the right",
+		"rows": 4,
+		"cols": 5,
+		"rule": "B3/S23",
+		"rle": "b4o$o3bo$4bo$o2bo!"
+	},
+	{
+		"name": "mwss",
+		"desc": "Medium weight C/2 spaceship",
+		"rows": 5,
+		"cols": 6,
+		"rule": "B3/S23",
+		"rle": "b5o$o4bo$5bo$o3bo$2bo!"
+	},
+	{
+		"name": "hwss",
+		"desc": "Heavyweight C/2 spaceship",
+		"rows": 4,
+		"cols": 7,
+		"rule": "B3/S23",
+		"rle": "b6o$o5bo$6bo$5bo!"
+	},
+	{
+		"name": "blinker",
+		"desc": "Period-2 oscillator",
+		"rows": 3,
+		"cols": 3,
+		"rule": "B3/S23",
+		"rle": "$3o!"
+	},
+	{
+		"name": "toad",
+		"desc": "Period-2 oscillator",
+		"rows": 4,
+		"cols": 4,
+		"rule": "B3/S23",
+		"rle": "$b3o$3o!"
+	},
+	{
+		"name": "beacon",
+		"desc": "Period-2 oscillator",
+		"rows": 4,
+		"cols": 4,
+		"rule": "B3/S23",
+		"rle": "2o$o$3bo$2b2o!"
+	},
+	{
+		"name": "pulsar",
+		"desc": "Period-3 oscillator",
+		"rows": 15,
+		"cols": 15,
+		"rule": "B3/S23",
+		"rle": "$3b3o3b3o2$bo4bobo4bo$bo4bobo4bo$bo4bobo4bo$3b3o3b3o2$3b3o3b3o$bo4bobo4bo$bo4bobo4bo$bo4bobo4bo2$3b3o3b3o!"
+	},
+	{
+		"name": "pentadecathlon",
+		"desc": "Period-25 oscillator",
+		"rows": 11,
+		"cols": 16,
+		"rule": "B3/S23",
+		"rle": "5$3b10o!"
+	},
+	{
+		"name": "period8",
+		"desc": "Period-8 oscillator",
+		"rows": 8,
+		"cols": 8,
+		"rule": "B3/S23",
+		"rle": "$b3o$b3o$b3o$4b3o$4b3o$4b3o!"
+	},
+	{
+		"name": "r-pentomino",
+		"desc": "First-discovered methuselah",
+		"rows": 3,
+		"cols": 3,
+		"rule": "B3/S23",
+		"rle": "b2o$2o$bo!"
+	},
+	{
+		"name": "diehard",
+		"desc": "Methuselah who disappears after 130 generations",
+		"rows": 3,
+		"cols": 8,
+		"rule": "B3/S23",
+		"rle": "6bo$2o$bo3b3o$"
+	},
+	{
+		"name": "acorn",
+		"desc": "Classic methuselah. Try with dimensions from 6x33",
+		"rows": 3,
+		"cols": 7,
+		"rule": "B3/S23",
+		"rle": "bo$3bo$2o2b3o$"
+	},
+	{
+		"name": "gosper-glider-gun",
+		"desc": "Classic gun with an eater at the bottom",
+		"rows": 26,
+		"cols": 37,
+		"rule": "B3/S23",
+		"rle": "24bo$22bobo$12b2o6b2o12b2o$11bo3bo4b2o12b2o$2o8bo5bo3b2o$2o8bo3bob2o4bobo$10bo5bo7bo$11bo3bo$12b2o$11$26b2o$26b2o3bo$30bobo$31bobo$33bo$33b2o!"
+	}
+]
