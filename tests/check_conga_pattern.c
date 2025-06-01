@@ -1,3 +1,5 @@
+#undef HAVE_PATTERN_DEFS_H
+
 #include "check_conga.h"
 
 #include "../src/wrapper.h"
@@ -56,51 +58,45 @@ teardown (void)
 	pattern = NULL;
 }
 
-START_TEST (test_pattern_header_parse)
+START_TEST (test_pattern_rle_header_parse)
 {
-	ck_assert (pattern_header_parse (pattern, header[_i]));
+	ck_assert (pattern_rle_header_parse (pattern, header[_i]));
 
-	ck_assert_int_eq (pattern->cols, val[_i][0].num);
-	ck_assert_int_eq (pattern->rows, val[_i][1].num);
+	ck_assert_int_eq (pattern->header.cols, val[_i][0].num);
+	ck_assert_int_eq (pattern->header.rows, val[_i][1].num);
 
-	if (pattern->rule != NULL)
-		ck_assert_str_eq (pattern->rule, val[_i][2].str);
+	if (pattern->header.rule != NULL)
+		ck_assert_str_eq (pattern->header.rule, val[_i][2].str);
 }
 END_TEST
 
-START_TEST (test_pattern_header_parse_fail)
+START_TEST (test_pattern_rle_header_parse_fail)
 {
-	ck_assert (!pattern_header_parse (pattern, header_fail[_i]));
+	ck_assert (!pattern_rle_header_parse (pattern, header_fail[_i]));
 }
 END_TEST
 
 START_TEST (test_pattern_rle_parse)
 {
 	char rle[] = "b2o$2o$bo!";
-
-	FILE *fp = fmemopen (rle, sizeof (rle), "r");
+	int grid[3][3] =
+	{
+		{0, 1, 1},
+		{1, 1, 0},
+		{0, 1, 0}
+	};
 
 	int rows = 0, cols = 0;
-	int rc = pattern_rle_parse (NULL, fp, &rows, &cols);
-
-	printf (":: [%d] %d %d\n", rc, rows, cols);
+	int rc = pattern_rle_parse (NULL, rle, &rows, &cols);
 
 	pattern->grid = grid_new (rows, cols);
-	rewind (fp);
 
-	rc = pattern_rle_parse (pattern, fp, NULL, NULL);
+	rc = pattern_rle_parse (pattern, rle, NULL, NULL);
+	ck_assert (rc);
 
 	for (int i = 0; i < pattern->grid->rows; i++)
-		{
-			printf ("%d", GRID_GET (pattern->grid, i, 0));
-
-			for (int j = 1; j < pattern->grid->cols; j++)
-				printf (" %d", GRID_GET (pattern->grid, i, j));
-
-			printf ("\n");
-		}
-
-	fclose (fp);
+		for (int j = 1; j < pattern->grid->cols; j++)
+			ck_assert_int_eq (GRID_GET (pattern->grid, i, j), grid[i][j]);
 }
 END_TEST
 
@@ -116,9 +112,9 @@ make_pattern_suite (void)
 	tc_core = tcase_create ("Core");
 
 	tcase_add_checked_fixture (tc_core, setup, teardown);
-	tcase_add_loop_test (tc_core, test_pattern_header_parse,
+	tcase_add_loop_test (tc_core, test_pattern_rle_header_parse,
 			0, HEADER_SIZE (header));
-	tcase_add_loop_test (tc_core, test_pattern_header_parse_fail,
+	tcase_add_loop_test (tc_core, test_pattern_rle_header_parse_fail,
 			0, HEADER_SIZE (header_fail));
 	tcase_add_test (tc_core, test_pattern_rle_parse);
 

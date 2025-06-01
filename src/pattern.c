@@ -9,16 +9,9 @@
 #include "utils.h"
 #include "rule.h"
 
-enum PatternTokenType
-{
-	DEAD    = 264,
-	ALIVE   = 265,
-	NEWROW  = 266,
-	END     = 267,
-	COUNT   = 270,
-	MISTERY = 271
-};
-
+#ifdef HAVE_PATTERN_DEFS_H
+#include "pattern_defs.h"
+#else
 const PatternDef pattern_defs[] =
 {
 	{
@@ -27,32 +20,18 @@ const PatternDef pattern_defs[] =
 		"Smallest moving pattern; moves diagonally",
 		"bob$2bo$3o!"
 	},
-	{
-		{4, 5, "B3/S23"},
-		"lightweight_spaceship",
-		"Moves horizontally; smallest spaceship after glider",
-		"bo2bo$4o$4o$ob3o!"
-	},
-	{
-		{5, 10, "B3/S23"},
-		"pulsar",
-		"Period-3 oscillator; common example of a large oscillator",
-		"b3o3b3o$bo2bo2bo$bo2bo2bo$bo2bo2bo$b3o3b3o!"
-	},
-	{
-		{9, 42, "B3/S23"},
-		"gosper_glider_gun",
-		"First known glider gun; emits gliders infinitely",
-		"24bo11b$22bobo11b$12bo10bobo12b$11bo11bob2o11b$2bo8b5o8bo14b$bob"
-		"o7bo5bo7bobo12b$bo2bo6bo7bo6bo2bo12b$2b2o7bo5bo7b2o13b$10b5o!"
-	},
-	{
-		{6, 4, "B3/S23"},
-		"tumbler",
-		"Period-2 oscillator; resembles tumbling motion",
-		"b3o$b3o$b3o$3o$3o$3o!"
-	},
 	{ {}, NULL, NULL, NULL }
+};
+#endif
+
+enum PatternTokenType
+{
+	DEAD    = 264,
+	ALIVE   = 265,
+	NEWROW  = 266,
+	END     = 267,
+	COUNT   = 270,
+	MISTERY = 271
 };
 
 static const PatternDef *
