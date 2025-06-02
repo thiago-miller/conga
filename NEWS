@@ -1,3 +1,11 @@
+Version 0.6.0
+
+* Improve rules and patterns parsing using regex.
+
+* Use JSON database to store built in patterns. All
+  the patterns are uploaded at compile time.  See
+  data/pattern_defs.json.
+
 Version 0.5.0
 
 * Show program version from VCS.
