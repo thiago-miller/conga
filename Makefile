@@ -1,6 +1,7 @@
 CC             = gcc
 SHELL          = bash -euo pipefail
-CFLAGS         = -Wall -O2 -DHAVE_VERSION_H -DHAVE_PATTERN_DEFS_H -I$(BUILD_SRC_DIR)
+CFLAGS         = -Wall -O2 $$(pkg-config --cflags ncurses) -DHAVE_VERSION_H -DHAVE_PATTERN_DEFS_H -I$(BUILD_SRC_DIR)
+LDLIBS         = $$(pkg-config --libs ncurses)
 LDFLAGS_TEST   = -Wl,--wrap=malloc -Wl,--wrap=calloc
 LDLIBS_TEST    = -lcheck
 SRC_DIR        = src
@@ -42,7 +43,7 @@ all: | $(BUILD_LOG_DIR)
 	fi
 
 $(BUILD_SRC_DIR)/$(TARGET): $(SRC_DIR)/main.c $(BUILD_SRC_DIR)/$(TARGET_LIB)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_SRC_DIR)/$(TARGET_LIB): $(OBJS)
 	ar rcs $@ $^
