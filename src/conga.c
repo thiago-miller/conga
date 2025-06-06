@@ -1,65 +1,28 @@
 #include "conga.h"
 
-#include <stdio.h>
+#include <ncurses.h>
 #include <stdlib.h>
-#include <signal.h>
 #include <assert.h>
 #include "wrapper.h"
+#include "event.h"
 #include "grid.h"
 #include "cell.h"
 #include "render.h"
 #include "rule.h"
 #include "rand.h"
-#include "input.h"
 #include "pattern.h"
 
-#ifdef _WIN32
-#include <windows.h>
-// Sleep in miliseconds
-#define CONGA_SLEEP(u) Sleep(u / 1000);
-#else
-#include <unistd.h>
-// Sleep in microseconds
-#define CONGA_SLEEP(u) usleep(u);
-#endif
-
-#define FPS  60
-#define TICK 1000000 / FPS
+#define FPS 60
 
 struct _Conga
 {
-	Grid *grid_cur;
-	Grid *grid_next;
-	Rule *rule;
-	Rand *rng;
-	int   delay;
+	EventQueue *queue;
+	Render     *render;
+	Grid       *grid_cur;
+	Grid       *grid_next;
+	Rule       *rule;
+	Rand       *rng;
 };
-
-static volatile sig_atomic_t die = 0;
-
-static void
-shutdown (int signum)
-{
-	die = 1;
-}
-
-void
-conga_startup (void)
-{
-	signal (SIGINT,  shutdown);
-	signal (SIGQUIT, shutdown);
-	signal (SIGTERM, shutdown);
-
-	input_init ();
-	render_init ();
-}
-
-void
-conga_shutdown (void)
-{
-	input_finish ();
-	render_finish ();
-}
 
 static void
 conga_set_game_from_pattern (Conga *game, const Config *cfg)
@@ -79,11 +42,12 @@ conga_set_game_from_pattern (Conga *game, const Config *cfg)
 		: pattern->grid->cols;
 
 	*game = (Conga) {
-		.grid_cur  = grid_new (rows, cols),
-		.grid_next = grid_new (rows, cols),
-		.rule      = rule_new (rule),
-		.rng       = NULL,
-		.delay     = cfg->delay
+		.queue     = event_queue_new (FPS, cfg->delay),
+		.render    = render_new      ("ponga", rows, cols),
+		.grid_cur  = grid_new        (rows, cols),
+		.grid_next = grid_new        (rows, cols),
+		.rule      = rule_new        (rule),
+		.rng       = NULL
 	};
 
 	cell_seed_from_grid (game->grid_cur, pattern->grid);
@@ -95,11 +59,12 @@ static void
 conga_set_random_game (Conga *game, const Config *cfg)
 {
 	*game = (Conga) {
-		.grid_cur  = grid_new (cfg->rows, cfg->cols),
-		.grid_next = grid_new (cfg->rows, cfg->cols),
-		.rule      = rule_new (cfg->rule),
-		.rng       = rand_new (cfg->seed),
-		.delay     = cfg->delay
+		.queue     = event_queue_new (FPS, cfg->delay),
+		.render    = render_new      ("ponga", cfg->rows, cfg->cols),
+		.grid_cur  = grid_new        (cfg->rows, cfg->cols),
+		.grid_next = grid_new        (cfg->rows, cfg->cols),
+		.rule      = rule_new        (cfg->rule),
+		.rng       = rand_new        (cfg->seed)
 	};
 
 	cell_seed_random_generation (game->grid_cur,
@@ -118,9 +83,6 @@ conga_new (const Config *cfg)
 	else
 		conga_set_random_game (game, cfg);
 
-	cell_step_generation (game->grid_next,
-			game->grid_cur, game->rule);
-
 	return game;
 }
 
@@ -135,59 +97,92 @@ conga_swap_grids (Conga *game)
 static inline void
 conga_update_logic (Conga *game)
 {
-	conga_swap_grids (game);
 	cell_step_generation (game->grid_next,
 			game->grid_cur, game->rule);
+	conga_swap_grids (game);
 }
 
 static inline void
-conga_update_graphics (Conga *game)
+conga_update_graphics (Conga *game, int redraw)
 {
-	render_draw (game->grid_cur, game->grid_next);
+	if (redraw)
+		render_force_redraw (game->render);
+	render_draw (game->render, game->grid_cur);
+}
+
+static inline void
+conga_input_key (Conga *game, int key, int *done, int *paused)
+{
+	switch (key)
+		{
+		case 'q':
+		case 'Q':
+			{
+				*done = 1;
+				break;
+			}
+		case '\n':
+		case ' ' :
+			{
+				*paused = !(*paused);
+				event_queue_pause (game->queue, *paused);
+				break;
+			}
+		}
 }
 
 void
 conga_run (Conga *game)
 {
-	int paused = 0;
-	int done   = 0;
-	int key    = 0;
-	int tick   = 0;
+	Event event  = {0};
+	int   done   = 0;
+	int   paused = 0;
+	int   draw   = 0;
+	int   redraw = 0;
 
-	conga_update_graphics (game);
+	conga_update_graphics (game, 0);
 
-	while (!die && !done)
+	while (!done)
 		{
-			key = input_read_key ();
+			event_queue_wait_for_event (game->queue, &event);
 
-			switch (key)
+			switch (event.type)
 				{
-				case INPUT_ESC:
-				case 'q':
-				case 'Q':
+				case EVENT_NONE:
+					{
+						// Just remove warning
+						break;
+					}
+				case EVENT_QUIT:
 					{
 						done = 1;
-						continue;
+						break;
 					}
-				case INPUT_ENTER:
-				case INPUT_SPACE:
+				case EVENT_KEY:
 					{
-						paused = !paused;
+						conga_input_key (game, event.key, &done, &paused);
+						break;
+					}
+				case EVENT_TIMER:
+					{
+						conga_update_logic (game);
+						draw = 1;
+						break;
+					}
+				case EVENT_WINCH:
+					{
+						draw   = 1;
+						redraw = 1;
 						break;
 					}
 				}
 
-			if (!paused && tick >= game->delay)
+			if (draw)
 				{
-					conga_update_logic (game);
-					conga_update_graphics (game);
-					tick %= game->delay;
+					conga_update_graphics (game, redraw);
+					draw   = 0;
+					redraw = 0;
 				}
-
-			CONGA_SLEEP (TICK);
-
-			if (!paused)
-				tick += TICK;
 		}
 }
 
@@ -197,10 +192,12 @@ conga_free (Conga *game)
 	if  (game == NULL)
 		return;
 
-	grid_free (game->grid_cur);
-	grid_free (game->grid_next);
-	rule_free (game->rule);
-	rand_free (game->rng);
+	event_queue_free (game->queue);
+	render_free      (game->render);
+	grid_free        (game->grid_cur);
+	grid_free        (game->grid_next);
+	rule_free        (game->rule);
+	rand_free        (game->rng);
 
 	xfree (game);
 }
