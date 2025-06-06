@@ -2,6 +2,9 @@
 
 #include "grid.h"
 
-void render_init   (void);
-void render_draw   (const Grid *grid_cur, const Grid *grid_next);
-void render_finish (void);
+typedef struct _Render Render;
+
+Render * render_new          (const char *title, int rows, int cols);
+void     render_draw         (Render *render, const Grid *grid_cur);
+void     render_force_redraw (Render *render);
+void     render_free         (Render *render);
