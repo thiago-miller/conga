@@ -19,6 +19,8 @@ struct _EventQueue
 	useconds_t tick;
 	useconds_t delay;
 	useconds_t acm;
+
+	int        paused;
 };
 
 static volatile sig_atomic_t quit   = 0;
@@ -106,7 +108,7 @@ event_queue_new (int fps, int delay)
 	EventQueue *queue = xmalloc (sizeof (EventQueue));
 
 	*queue  = (EventQueue) {
-		.events = {0},
+		.events = {},
 		.head   = -1,
 		.tail   = -1,
 		.tick   = EVENT_QUEUE_SEC / fps,
@@ -146,14 +148,24 @@ event_queue_wait_for_event (EventQueue *queue, Event *event)
 			if (ch != ERR)
 				event_queue_push (queue, EVENT_KEY, ch);
 
-			queue->acm += queue->tick;
-
-			if (queue->acm >= queue->delay)
+			if (!queue->paused)
 				{
-					queue->acm %= queue->delay;
-					event_queue_push (queue, EVENT_TIMER, -1);
+					queue->acm += queue->tick;
+
+					if (queue->acm >= queue->delay)
+						{
+							queue->acm %= queue->delay;
+							event_queue_push (queue, EVENT_TIMER, -1);
+						}
 				}
 		}
 
 	*event = * (event_queue_shift (queue));
+}
+
+void
+event_queue_pause (EventQueue *queue, int paused)
+{
+	assert (queue != NULL);
+	queue->paused = paused;
 }

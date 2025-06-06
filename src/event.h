@@ -20,3 +20,4 @@ typedef struct
 EventQueue * event_queue_new             (int fps, int delay);
 void         event_queue_wait_for_event  (EventQueue *queue, Event *event);
 void         event_queue_free            (EventQueue *queue);
+void         event_queue_pause           (EventQueue *queue, int paused);
