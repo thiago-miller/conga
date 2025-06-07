@@ -207,6 +207,8 @@ config_new (void)
 	Config *cfg = xcalloc (1, sizeof (Config));
 
 	*cfg = (Config) {
+		.progname     = PROGNAME,
+		.version      = VERSION,
 		.seed         = SEED,
 		.rows         = ROWS,
 		.cols         = COLS,
