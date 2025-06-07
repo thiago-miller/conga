@@ -1,6 +1,7 @@
 #include "wrapper.h"
 
 #include <string.h>
+#include <stdarg.h>
 #include "error.h"
 
 void *
@@ -49,6 +50,28 @@ xstrdup (const char *str)
 		error (1, 1, "strdup failed");
 
 	return (char *) memcpy (new, str, len);
+}
+
+int
+xasprintf (char **buf, const char *fmt, ...)
+{
+	va_list argp;
+	va_start (argp, fmt);
+	char one_char[1];
+
+	int len = vsnprintf (one_char, 1, fmt, argp);
+	if (len < 1)
+		error (1, 0, "asprintf failed");
+
+	va_end (argp);
+
+	*buf = xmalloc (len + 1);
+
+	va_start (argp, fmt);
+	vsnprintf (*buf, len + 1, fmt, argp);
+	va_end (argp);
+
+	return len;
 }
 
 FILE *
