@@ -16,6 +16,12 @@
 #define WIN_START_ROW 1
 #define WIN_START_COL 1
 
+#define COLOR_PAIR_OUTER_BOX   1
+#define COLOR_PAIR_INNER_BOX   2
+#define COLOR_PAIR_CELL_ALIVE  1
+#define COLOR_PAIR_CELL_DEAD   2
+#define COLOR_PAIR_STATUS_BOX  3
+
 struct _Render
 {
 	const char *title;
@@ -24,9 +30,10 @@ struct _Render
 	int         cur_rows, cur_cols;
 	WINDOW     *outer_box;
 	WINDOW     *inner_box;
+	WINDOW     *status_box;
 };
 
-void
+int
 render_scroll (Render *render, const Grid *grid, int dx, int dy)
 {
 	assert (render != NULL);
@@ -34,26 +41,34 @@ render_scroll (Render *render, const Grid *grid, int dx, int dy)
 	assert (grid->rows >= render->cur_rows
 			&& grid->cols >= render->cur_cols);
 
-	render->view_row += dx;
-	render->view_col += dy;
+	int view_row = render->view_row;
+	int view_col = render->view_col;
+	int max_x    = grid->rows - render->cur_rows;
+	int max_y    = grid->cols - render->cur_cols;
+	int rc = 0;
 
-	if (render->view_row < 0)
-		render->view_row = 0;
+	view_row += dx;
+	view_col += dy;
 
-	if (render->view_col < 0)
-		render->view_col = 0;
+	if (view_row < 0)
+		view_row = 0;
+	else if (view_row > max_x)
+		view_row = max_x;
 
-	int max_x = grid->rows - render->cur_rows;
-	int max_y = grid->cols - render->cur_cols;
+	if (view_col < 0)
+		view_col = 0;
+	else if (view_col > max_y)
+		view_col = max_y;
 
-	if (render->view_row > max_x)
-		render->view_row = max_x;
+	if (render->view_row != view_row
+			|| render->view_col != view_col)
+		{
+			render->view_row = view_row;
+			render->view_col = view_col;
+			rc = 1;
+		}
 
-	if (render->view_col > max_y)
-		render->view_col = max_y;
-
-	mvwprintw (render->inner_box, 0, 2, "[%07d,%07d]",
-			render->view_row, render->view_col);
+	return rc;
 }
 
 static inline void
@@ -72,7 +87,7 @@ render_resize_viewport (Render *render)
 	box (render->outer_box, 0, 0);
 	mvwprintw (render->outer_box, 0, 2, "[%s]", render->title);
 
-	int inner_rows = term_rows - WIN_FRAME_ROWS * 2;
+	int inner_rows = term_rows - WIN_FRAME_ROWS * 2 - 1;
 	int inner_cols = term_cols - WIN_FRAME_COLS * 20;
 	int total_rows = WIN_TOTAL_ROWS (render->win_rows);
 	int total_cols = WIN_TOTAL_COLS (render->win_cols);
@@ -86,16 +101,17 @@ render_resize_viewport (Render *render)
 	render->cur_rows = WIN_GRID_ROWS (total_rows);
 	render->cur_cols = WIN_GRID_COLS (total_cols);
 
-	int inner_startx = 2;
-	int inner_starty = 2;
+	int inner_startx = WIN_FRAME_COLS;
+	int inner_starty = (term_rows - total_rows) / 2;
 
 	wresize (render->inner_box, total_rows, total_cols);
 	wclear (render->inner_box);
 	box (render->inner_box, 0, 0);
-	mvwprintw (render->inner_box, 0, 2, "[%07d,%07d]",
-			render->view_row, render->view_col);
-
 	mvwin (render->inner_box, inner_starty, inner_startx);
+
+	wresize (render->status_box, 1, total_cols);
+	wclear (render->status_box);
+	mvwin (render->status_box, term_rows - WIN_FRAME_ROWS, WIN_FRAME_COLS);
 }
 
 void
@@ -111,27 +127,41 @@ render_force_resize (Render *render)
 	render_resize_viewport (render);
 }
 
+static void
+render_init_colors (void)
+{
+	start_color ();
+	init_color (COLOR_RED, 700, 0, 0);
+
+	init_pair (1, COLOR_WHITE, COLOR_BLACK);
+	init_pair (2, COLOR_BLACK, COLOR_WHITE);
+	init_pair (3, COLOR_WHITE, COLOR_RED);
+}
+
 Render *
 render_new (const char *title, int win_rows, int win_cols)
 {
 	assert (title != NULL);
 
-	start_color ();
-	init_pair (1, COLOR_WHITE, COLOR_BLACK);
-	init_pair (2, COLOR_BLACK, COLOR_WHITE);
+	render_init_colors ();
 
 	Render *render = xcalloc (1, sizeof (Render));
 
 	*render = (Render) {
-		.title     = xstrdup (title),
-		.outer_box = newwin (0, 0, 0, 0),
-		.inner_box = newwin (0, 0, 0, 0),
-		.win_rows  = win_rows,
-		.win_cols  = win_cols
+		.title      = xstrdup (title),
+		.outer_box  = newwin (0, 0, 0, 0),
+		.inner_box  = newwin (0, 0, 0, 0),
+		.status_box = newwin (0, 0, 0, 0),
+		.win_rows   = win_rows,
+		.win_cols   = win_cols
 	};
 
-	wbkgd (render->outer_box, COLOR_PAIR (1));
-	wbkgd (render->inner_box, COLOR_PAIR (2));
+	wbkgd (render->outer_box,
+			COLOR_PAIR (COLOR_PAIR_OUTER_BOX));
+	wbkgd (render->inner_box,
+			COLOR_PAIR (COLOR_PAIR_INNER_BOX));
+	wbkgd (render->status_box,
+			COLOR_PAIR (COLOR_PAIR_STATUS_BOX));
 
 	render_resize_viewport (render);
 
@@ -146,17 +176,15 @@ render_free (Render *render)
 
 	delwin (render->outer_box);
 	delwin (render->inner_box);
+	delwin (render->status_box);
 
 	xfree ((char *) render->title);
 	xfree (render);
 }
 
-void
-render_draw (Render *render, const Grid *grid)
+static inline void
+render_update_grid (Render *render, const Grid *grid)
 {
-	assert (render != NULL);
-	assert (grid != NULL);
-
 	int cell = 0;
 
 	for (int i = 0; i < render->cur_rows; i++)
@@ -177,8 +205,54 @@ render_draw (Render *render, const Grid *grid)
 
 				wattroff (render->inner_box, COLOR_PAIR (-1 * cell + 2));
 			}
+}
+
+static inline void
+render_update_status (Render *render, const Grid *grid, const Cell *cell)
+{
+	// Clean windows
+	wmove(render->status_box, 0, 0);
+	for (int i = 0; i < WIN_TOTAL_COLS (render->cur_cols); i++)
+		waddch (render->status_box, ' ');
+
+	wmove (render->status_box, 0, 0);
+	wprintw (render->status_box, "[%d,%d] ",
+			render->view_row, render->view_col);
+
+	wattron (render->status_box, A_BOLD);
+	wprintw (render->status_box, "View:");
+	wattroff (render->status_box, A_BOLD);
+	wprintw (render->status_box, "%dx%d ",
+			render->cur_rows, render->cur_cols);
+
+	wattron (render->status_box, A_BOLD);
+	wprintw (render->status_box, "Grid:");
+	wattroff (render->status_box, A_BOLD);
+	wprintw (render->status_box, "%dx%d ",
+			grid->rows, grid->cols);
+
+	wattron (render->status_box, A_BOLD);
+	wprintw (render->status_box, "Alive:");
+	wattroff (render->status_box, A_BOLD);
+	wprintw (render->status_box, "%u ", cell->alive);
+
+	wattron (render->status_box, A_BOLD);
+	wprintw (render->status_box, "Gen:");
+	wattroff (render->status_box, A_BOLD);
+	wprintw (render->status_box, "%u ", cell->gen);
+}
+
+void
+render_draw (Render *render, const Grid *grid, const Cell *cell)
+{
+	assert (render != NULL);
+	assert (grid != NULL);
+
+	render_update_grid   (render, grid);
+	render_update_status (render, grid, cell);
 
 	refresh  ();
 	wrefresh (render->outer_box);
 	wrefresh (render->inner_box);
+	wrefresh (render->status_box);
 }
