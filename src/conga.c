@@ -18,10 +18,14 @@ struct _Conga
 {
 	EventQueue *queue;
 	Render     *render;
+
 	Grid       *grid_cur;
 	Grid       *grid_next;
+
 	Rule       *rule;
 	Rand       *rng;
+
+	Cell        cell;
 	struct
 	{
 		int   done;
@@ -60,7 +64,8 @@ conga_set_game_from_pattern (Conga *game, const Config *cfg)
 		.rng       = NULL
 	};
 
-	cell_seed_from_grid (game->grid_cur, pattern->grid);
+	cell_seed_from_grid (game->grid_cur,
+			pattern->grid, &game->cell);
 
 	xfree (title);
 	pattern_free (pattern);
@@ -81,8 +86,8 @@ conga_set_random_game (Conga *game, const Config *cfg)
 		.rng       = rand_new        (cfg->seed)
 	};
 
-	cell_seed_random_generation (game->grid_cur,
-			game->rng, cfg->live_percent);
+	cell_seed_random_generation (game->grid_cur, game->rng,
+			cfg->live_percent, &game->cell);
 
 	xfree (title);
 }
@@ -113,8 +118,9 @@ conga_swap_grids (Conga *game)
 static inline void
 conga_update_logic (Conga *game)
 {
-	cell_step_generation (game->grid_next,
-			game->grid_cur, game->rule);
+	cell_step_generation (game->grid_next, game->grid_cur,
+			game->rule, &game->cell);
+
 	conga_swap_grids (game);
 }
 
@@ -123,7 +129,8 @@ conga_update_graphics (Conga *game)
 {
 	if (game->status.resize)
 		render_force_resize (game->render);
-	render_draw (game->render, game->grid_cur);
+
+	render_draw (game->render, game->grid_cur, &game->cell);
 }
 
 static inline void
@@ -146,68 +153,65 @@ conga_input_key (Conga *game, int key)
 			}
 		case KEY_UP:
 			{
-				render_scroll (game->render, game->grid_cur, -1, 0);
-				game->status.redraw = 1;
+				game->status.redraw = render_scroll (game->render,
+						game->grid_cur, -1, 0);
 				break;
 			}
 		case KEY_DOWN:
 			{
-				render_scroll (game->render, game->grid_cur, +1, 0);
-				game->status.redraw = 1;
+				game->status.redraw = render_scroll (game->render,
+						game->grid_cur, +1, 0);
 				break;
 			}
 		case KEY_LEFT:
 			{
-				render_scroll (game->render, game->grid_cur, 0, -1);
-				game->status.redraw = 1;
+				game->status.redraw = render_scroll (game->render,
+						game->grid_cur, 0, -1);
 				break;
 			}
 		case KEY_RIGHT:
 			{
-				render_scroll (game->render, game->grid_cur, 0, +1);
-				game->status.redraw = 1;
+				game->status.redraw = render_scroll (game->render,
+						game->grid_cur, 0, +1);
 				break;
 			}
 		case 'g':
 			{
-				render_scroll (game->render, game->grid_cur,
+				game->status.redraw = render_scroll (game->render,
+						game->grid_cur,
 						-1 * game->grid_cur->rows, 0);
-				game->status.redraw = 1;
 				break;
 			}
 		case 'G':
 			{
-				render_scroll (game->render, game->grid_cur,
-						game->grid_cur->rows, 0);
-				game->status.redraw = 1;
+				game->status.redraw = render_scroll (game->render,
+						game->grid_cur, game->grid_cur->rows, 0);
 				break;
 			}
 		case '$':
 			{
-				render_scroll (game->render, game->grid_cur,
-						0, game->grid_cur->cols);
-				game->status.redraw = 1;
+				game->status.redraw = render_scroll (game->render,
+						game->grid_cur, 0, game->grid_cur->cols);
 				break;
 			}
 		case '0':
 			{
-				render_scroll (game->render, game->grid_cur,
-						0, -1 * game->grid_cur->cols);
-				game->status.redraw = 1;
+				game->status.redraw = render_scroll (game->render,
+						game->grid_cur, 0, -1 * game->grid_cur->cols);
 				break;
 			}
 		case 'o':
 			{
-				render_scroll (game->render, game->grid_cur,
-						-1 * game->grid_cur->rows, -1 * game->grid_cur->cols);
-				game->status.redraw = 1;
+				game->status.redraw = render_scroll (game->render,
+						game->grid_cur, -1 * game->grid_cur->rows,
+						-1 * game->grid_cur->cols);
 				break;
 			}
 		case 'O':
 			{
-				render_scroll (game->render, game->grid_cur,
-						game->grid_cur->rows, game->grid_cur->cols);
-				game->status.redraw = 1;
+				game->status.redraw = render_scroll (game->render,
+						game->grid_cur, game->grid_cur->rows,
+						game->grid_cur->cols);
 				break;
 			}
 		}
