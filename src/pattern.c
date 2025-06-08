@@ -234,30 +234,43 @@ pattern_get_header_and_body (char *buf, const char **h, const char **b)
 	return 1;
 }
 
-static void
+static int
 pattern_parse_from_file (Pattern *pattern, const char *filename)
 {
 	const char *h = NULL, *b = NULL;
 	char *buf = NULL;
 	int rows = 0, cols = 0;
+	int rc = 0;
 
 	buf = file_slurp (filename);
 
 	// Get header
 	if (!pattern_get_header_and_body (buf, &h, &b))
-		error (1, 0, "Empty or truncated file '%s'", filename);
+		{
+			error (0, 0, "Empty or truncated file '%s'", filename);
+			goto CLEAN;
+		}
 
 	// Parse header
 	if (!pattern_rle_header_parse (pattern, h))
-		error (1, 0, "Failed to parse header from '%s'", filename);
+		{
+			error (0, 0, "Failed to parse header from '%s'", filename);
+			goto CLEAN;
+		}
 
 	// Parse rule
 	if (pattern->header.rule != NULL && !rule_is_valid (pattern->header.rule))
-		error (1, 0, "Invalid rule or alias '%s'", pattern->header.rule);
+		{
+			error (0, 0, "Invalid rule or alias '%s'", pattern->header.rule);
+			goto CLEAN;
+		}
 
 	// Parse and get grid dimensions
 	if (!pattern_rle_parse (NULL, b, &rows, &cols))
-		error (1, 0, "Failed to parse RLE string from '%s'", filename);
+		{
+			error (0, 0, "Failed to parse RLE string from '%s'", filename);
+			goto CLEAN;
+		}
 
 	if (rows < pattern->header.rows)
 		rows = pattern->header.rows;
@@ -270,10 +283,16 @@ pattern_parse_from_file (Pattern *pattern, const char *filename)
 	// Set the grid with the pattern
 	assert (pattern_rle_parse (pattern, b, NULL, NULL));
 
+	// No error found
+	rc = 1;
+
+CLEAN:
 	xfree (buf);
+
+	return rc;
 }
 
-static void
+static int
 pattern_parse_from_def (Pattern *pattern, const PatternDef *def)
 {
 	pattern->header.rows = def->header.rows,
@@ -282,7 +301,7 @@ pattern_parse_from_def (Pattern *pattern, const PatternDef *def)
 
 	pattern->grid = grid_new (def->header.rows, def->header.cols);
 
-	assert (pattern_rle_parse (pattern, def->rle, NULL, NULL));
+	return pattern_rle_parse (pattern, def->rle, NULL, NULL);
 }
 
 Pattern *
@@ -292,13 +311,16 @@ pattern_new (const char *pattern_str)
 
 	Pattern *pattern = NULL;
 	const PatternDef *def = NULL;
+	int rc = 0;
 
 	pattern = xcalloc (1, sizeof (Pattern));
 
 	if ((def = pattern_get_def_from_alias (pattern_str)) == NULL)
-		pattern_parse_from_file (pattern, pattern_str);
+		rc = pattern_parse_from_file (pattern, pattern_str);
 	else
-		pattern_parse_from_def (pattern, def);
+		rc = pattern_parse_from_def (pattern, def);
+
+	assert (rc);
 
 	return pattern;
 }
@@ -313,4 +335,19 @@ pattern_free (Pattern *pattern)
 	grid_free (pattern->grid);
 
 	xfree (pattern);
+}
+
+int
+pattern_is_valid (const char *pattern_str)
+{
+	assert (pattern_str != NULL);
+
+	Pattern *pattern = xcalloc (1, sizeof (Pattern));
+
+	int rc = pattern_get_def_from_alias (pattern_str)
+		|| pattern_parse_from_file (pattern, pattern_str);
+
+	pattern_free (pattern);
+
+	return rc;
 }

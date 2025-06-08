@@ -243,6 +243,9 @@ config_validate_args (const Config *cfg)
 
 	if (!rule_is_valid (cfg->rule))
 		error (1, 0, "--rule is not a valid rule or alias");
+
+	if (cfg->pattern_file != NULL && !pattern_is_valid (cfg->pattern_file))
+		error (1, 0, "--pattern is not a valid file or alias");
 }
 
 void
