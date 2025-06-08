@@ -28,6 +28,7 @@ struct _Render
 	int         view_row, view_col;
 	int         win_rows, win_cols;
 	int         cur_rows, cur_cols;
+	int         scroll;
 	WINDOW     *outer_box;
 	WINDOW     *inner_box;
 	WINDOW     *status_box;
@@ -79,19 +80,30 @@ render_resize_viewport (Render *render)
 
 	getmaxyx (stdscr, term_rows, term_cols);
 
+	// Resize terminal
 	resizeterm (term_rows, term_cols);
 	clear ();
 
+	// Resize outer_box
 	wresize (render->outer_box, term_rows, term_cols);
 	wclear (render->outer_box);
 	box (render->outer_box, 0, 0);
-	mvwprintw (render->outer_box, 0, 2, "[%s]", render->title);
 
+	// Place title
+	wmove (render->outer_box, 0, 2);
+	waddch (render->outer_box, ACS_URCORNER);
+	wattron (render->outer_box, A_BOLD);
+	wprintw (render->outer_box, "%s", render->title);
+	wattroff (render->outer_box, A_BOLD);
+	waddch (render->outer_box, ACS_ULCORNER);
+
+	// Get inner_rows dimensions
 	int inner_rows = term_rows - WIN_FRAME_ROWS * 2 - 1;
 	int inner_cols = term_cols - WIN_FRAME_COLS * 20;
 	int total_rows = WIN_TOTAL_ROWS (render->win_rows);
 	int total_cols = WIN_TOTAL_COLS (render->win_cols);
 
+	// Set inner_box limits
 	if (total_rows < WIN_FRAME_ROWS + 1 || total_rows > inner_rows)
 		total_rows = inner_rows;
 
@@ -101,17 +113,24 @@ render_resize_viewport (Render *render)
 	render->cur_rows = WIN_GRID_ROWS (total_rows);
 	render->cur_cols = WIN_GRID_COLS (total_cols);
 
+	// Set inner_box position at the center left
 	int inner_startx = WIN_FRAME_COLS;
 	int inner_starty = (term_rows - total_rows) / 2;
 
+	// Draw inner_box
 	wresize (render->inner_box, total_rows, total_cols);
 	wclear (render->inner_box);
 	box (render->inner_box, 0, 0);
 	mvwin (render->inner_box, inner_starty, inner_startx);
 
+	// Draw status_box
 	wresize (render->status_box, 1, total_cols);
 	wclear (render->status_box);
 	mvwin (render->status_box, term_rows - WIN_FRAME_ROWS, WIN_FRAME_COLS);
+
+	// Scroll next render_update_grid in order
+	// to avoid view_row/view_col out of range
+	render->scroll = 1;
 }
 
 void
@@ -247,6 +266,12 @@ render_draw (Render *render, const Grid *grid, const Cell *cell)
 {
 	assert (render != NULL);
 	assert (grid != NULL);
+
+	if (render->scroll)
+		{
+			render_scroll (render, grid, 0, 0);
+			render->scroll = 0;
+		}
 
 	render_update_grid   (render, grid);
 	render_update_status (render, grid, cell);
