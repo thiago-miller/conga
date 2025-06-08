@@ -106,8 +106,8 @@
 	{
 		"name": "gosper-glider-gun",
 		"desc": "Classic gun with an eater at the bottom",
-		"rows": 26,
-		"cols": 37,
+		"rows": 30,
+		"cols": 40,
 		"rule": "B3/S23",
 		"rle": "24bo$22bobo$12b2o6b2o12b2o$11bo3bo4b2o12b2o$2o8bo5bo3b2o$2o8bo3bob2o4bobo$10bo5bo7bo$11bo3bo$12b2o$11$26b2o$26b2o3bo$30bobo$31bobo$33bo$33b2o!"
 	}
