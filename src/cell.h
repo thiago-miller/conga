@@ -6,8 +6,8 @@
 
 typedef struct
 {
-	unsigned int alive;
-	unsigned int gen;
+	int alive;
+	int gen;
 } Cell;
 
 void cell_seed_random_generation (Grid *grid, Rand *rng, float live_percent, Cell *cell);
