@@ -7,6 +7,7 @@
 #include <errno.h>
 
 void (*error_print_progname) (void) = NULL;
+void (*error_exit_cleanup)   (void) = NULL;
 
 void
 error (int status, int errnum, const char *format, ...)
@@ -27,5 +28,9 @@ error (int status, int errnum, const char *format, ...)
 	fflush( stderr);
 
 	if (status)
-		exit (status);
+		{
+			if (error_exit_cleanup != NULL)
+				(*error_exit_cleanup) ();
+			exit (status);
+		}
 }
