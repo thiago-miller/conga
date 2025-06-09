@@ -227,7 +227,8 @@ render_update_grid (Render *render, const Grid *grid)
 }
 
 static inline void
-render_update_status (Render *render, const Grid *grid, const Cell *cell)
+render_update_status (Render *render, const Grid *grid,
+		const RenderStat *stat)
 {
 	// Clean windows
 	wmove(render->status_box, 0, 0);
@@ -253,16 +254,24 @@ render_update_status (Render *render, const Grid *grid, const Cell *cell)
 	wattron (render->status_box, A_BOLD);
 	wprintw (render->status_box, "Alive:");
 	wattroff (render->status_box, A_BOLD);
-	wprintw (render->status_box, "%u ", cell->alive);
+	wprintw (render->status_box, "%u ",
+			stat->alive);
 
 	wattron (render->status_box, A_BOLD);
 	wprintw (render->status_box, "Gen:");
 	wattroff (render->status_box, A_BOLD);
-	wprintw (render->status_box, "%u ", cell->gen);
+	wprintw (render->status_box, "%u ",
+			stat->gen);
+
+	wattron (render->status_box, A_BOLD);
+	wprintw (render->status_box, "Gen/s:");
+	wattroff (render->status_box, A_BOLD);
+	wprintw (render->status_box, "%.2f ",
+			stat->rate);
 }
 
 void
-render_draw (Render *render, const Grid *grid, const Cell *cell)
+render_draw (Render *render, const Grid *grid, const RenderStat *stat)
 {
 	assert (render != NULL);
 	assert (grid != NULL);
@@ -274,7 +283,7 @@ render_draw (Render *render, const Grid *grid, const Cell *cell)
 		}
 
 	render_update_grid   (render, grid);
-	render_update_status (render, grid, cell);
+	render_update_status (render, grid, stat);
 
 	refresh  ();
 	wrefresh (render->outer_box);

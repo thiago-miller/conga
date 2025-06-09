@@ -12,12 +12,19 @@
 #include "rand.h"
 #include "pattern.h"
 
-#define FPS 60
+#define FPS         60
+#define DELAY_STEP  10000
+
+#define GEN_RATE(delay) ( \
+	(double) EVENT_QUEUE_SEC / (delay) \
+)
 
 struct _Conga
 {
 	EventQueue *queue;
+
 	Render     *render;
+	RenderStat  stat;
 
 	Grid       *grid_cur;
 	Grid       *grid_next;
@@ -26,6 +33,7 @@ struct _Conga
 	Rand       *rng;
 
 	Cell        cell;
+
 	struct
 	{
 		int   done;
@@ -108,6 +116,12 @@ conga_new (const Config *cfg)
 	else
 		conga_set_random_game (game, cfg);
 
+	game->stat = (RenderStat) {
+		.alive = game->cell.alive,
+		.gen   = game->cell.gen,
+		.rate  = GEN_RATE (cfg->delay)
+	};
+
 	return game;
 }
 
@@ -125,6 +139,9 @@ conga_update_logic (Conga *game)
 	cell_step_generation (game->grid_next, game->grid_cur,
 			game->rule, &game->cell);
 
+	game->stat.alive = game->cell.alive;
+	game->stat.gen   = game->cell.gen;
+
 	conga_swap_grids (game);
 }
 
@@ -134,7 +151,7 @@ conga_update_graphics (Conga *game)
 	if (game->status.resize)
 		render_force_resize (game->render);
 
-	render_draw (game->render, game->grid_cur, &game->cell);
+	render_draw (game->render, game->grid_cur, &game->stat);
 }
 
 static inline void
@@ -216,6 +233,20 @@ conga_input_key (Conga *game, int key)
 				game->status.redraw = render_scroll (game->render,
 						game->grid_cur, game->grid_cur->rows,
 						game->grid_cur->cols);
+				break;
+			}
+		case '>':
+			{
+				game->stat.rate = GEN_RATE (
+						event_queue_add_delay (game->queue, -1 * DELAY_STEP));
+				game->status.redraw = 1;
+				break;
+			}
+		case '<':
+			{
+				game->stat.rate = GEN_RATE (
+						event_queue_add_delay (game->queue, DELAY_STEP));
+				game->status.redraw = 1;
 				break;
 			}
 		}
