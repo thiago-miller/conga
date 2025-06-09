@@ -9,6 +9,7 @@
 #include "wrapper.h"
 #include "rule.h"
 #include "pattern.h"
+#include "event.h"
 #include "error.h"
 #include "screen.h"
 
@@ -240,8 +241,9 @@ config_validate_args (const Config *cfg)
 	if (cfg->cols <= 0)
 		error (1, 0, "--cols must be > 0");
 
-	if (cfg->delay <= 0)
-		error (1, 0, "--delay must be > 0");
+	if (cfg->delay < EVENT_DELAY_MIN || cfg->delay > EVENT_DELAY_MAX)
+		error (1, 0, "--delay must be [%d, %d]",
+				EVENT_DELAY_MIN, EVENT_DELAY_MAX);
 
 	if (cfg->live_percent <= 0.0 || cfg->live_percent >= 1.0)
 		error (1, 0, "--live-percent must be (0.0, 1.0)");
