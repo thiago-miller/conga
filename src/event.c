@@ -6,9 +6,6 @@
 #include <assert.h>
 #include "wrapper.h"
 
-#define EVENT_QUEUE_SEC  1000000
-#define EVENT_QUEUE_SIZE 1024
-
 struct _EventQueue
 {
 	Event      events[EVENT_QUEUE_SIZE];
@@ -168,4 +165,20 @@ event_queue_pause (EventQueue *queue, int paused)
 {
 	assert (queue != NULL);
 	queue->paused = paused;
+}
+
+int
+event_queue_add_delay (EventQueue *queue, int delay)
+{
+	assert (queue != NULL);
+
+	queue->delay += delay;
+
+	if (queue->delay < EVENT_DELAY_MIN)
+		queue->delay = EVENT_DELAY_MIN;
+
+	if (queue->delay > EVENT_DELAY_MAX)
+		queue->delay = EVENT_DELAY_MAX;
+
+	return queue->delay;
 }
