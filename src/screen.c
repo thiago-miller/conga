@@ -3,6 +3,8 @@
 #include <ncurses.h>
 #include "error.h"
 
+static int ncurses_started = 0;
+
 void
 screen_init (void)
 {
@@ -18,10 +20,13 @@ screen_init (void)
 			screen_finish ();
 			error (1, 0, "Your terminal emulator has no color support");
 		}
+
+	ncurses_started = 1;
 }
 
 void
 screen_finish (void)
 {
-	endwin ();
+	if (ncurses_started)
+		endwin ();
 }
