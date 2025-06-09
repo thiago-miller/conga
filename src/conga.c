@@ -38,7 +38,11 @@ struct _Conga
 static void
 conga_set_game_from_pattern (Conga *game, const Config *cfg)
 {
-	Pattern *pattern = pattern_new (cfg->pattern_file);
+	assert (cfg->pattern != NULL || cfg->pattern_file != NULL);
+
+	Pattern *pattern = pattern_new (cfg->pattern_file != NULL
+			? cfg->pattern_file
+			: cfg->pattern);
 
 	const char *rule = pattern->header.rule != NULL
 		? pattern->header.rule
@@ -99,7 +103,7 @@ conga_new (const Config *cfg)
 
 	Conga *game = xcalloc (1, sizeof (Conga));
 
-	if (cfg->pattern_file != NULL)
+	if (cfg->pattern != NULL || cfg->pattern_file != NULL)
 		conga_set_game_from_pattern (game, cfg);
 	else
 		conga_set_random_game (game, cfg);

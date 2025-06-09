@@ -338,16 +338,20 @@ pattern_free (Pattern *pattern)
 }
 
 int
-pattern_is_valid (const char *pattern_str)
+pattern_file_is_valid (const char *pattern_file)
 {
-	assert (pattern_str != NULL);
+	assert (pattern_file != NULL);
 
 	Pattern *pattern = xcalloc (1, sizeof (Pattern));
-
-	int rc = pattern_get_def_from_alias (pattern_str)
-		|| pattern_parse_from_file (pattern, pattern_str);
-
+	int rc = pattern_parse_from_file (pattern, pattern_file);
 	pattern_free (pattern);
 
 	return rc;
+}
+
+int
+pattern_alias_is_valid (const char *pattern_alias)
+{
+	assert (pattern_alias != NULL);
+	return pattern_get_def_from_alias (pattern_alias) != NULL;
 }

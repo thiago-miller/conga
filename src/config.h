@@ -5,6 +5,7 @@ typedef struct
 	const char *progname;
 	const char *version;
 	const char *pattern_file;
+	const char *pattern;
 	const char *rule;
 	long        seed;
 	int         rows;

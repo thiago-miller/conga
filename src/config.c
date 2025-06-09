@@ -6,10 +6,11 @@
 #include <getopt.h>
 #include <time.h>
 #include <assert.h>
-#include "error.h"
 #include "wrapper.h"
 #include "rule.h"
 #include "pattern.h"
+#include "error.h"
+#include "screen.h"
 
 #ifdef HAVE_VERSION_H
 #include "version.h"
@@ -48,9 +49,9 @@ config_print_usage (FILE *fp)
 		"                        or a custom rule Golly/RLE (Bx/Sy) format.\n"
 		"                        See section RULE below for details\n"
 		"   -P, --pattern        Load initial pattern. Use a named alias \n"
-		"                        (e.g., glider, tumbler) or custom\n"
-		"                        pattern from a Golly/RLE file format.\n"
-		"                        See section PATTERN below for details.\n"
+		"                        (e.g., glider, tumbler). See section PATTERN\n"
+		"                        below for details\n"
+		"       --pattern-file   Custom pattern from Golly/TLE file format\n"
 		"       --list-rules     List all available rule aliases and exit\n"
 		"       --list-patterns  List all available pattern aliases and exit\n"
 		"\n"
@@ -199,6 +200,10 @@ config_setup_environment (void)
 {
 	// Set error progname
 	error_print_progname = config_print_progname;
+
+	// Set cleanup to call screen_finish before
+	// exiting in case of error
+	error_exit_cleanup = screen_finish;
 }
 
 Config *
@@ -244,7 +249,13 @@ config_validate_args (const Config *cfg)
 	if (!rule_is_valid (cfg->rule))
 		error (1, 0, "--rule is not a valid rule or alias");
 
-	if (cfg->pattern_file != NULL && !pattern_is_valid (cfg->pattern_file))
+	if (cfg->pattern != NULL && cfg->pattern_file != NULL)
+		error (1, 0, "--pattern and --pattern-file cannot be set together");
+
+	if (cfg->pattern != NULL && !pattern_alias_is_valid (cfg->pattern))
+		error (1, 0, "--pattern is not a valid alias");
+
+	if (cfg->pattern_file != NULL && !pattern_file_is_valid (cfg->pattern_file))
 		error (1, 0, "--pattern is not a valid file or alias");
 }
 
@@ -269,7 +280,8 @@ config_apply_args (Config *cfg, int argc, char **argv)
 		{"rule",          required_argument, 0, 'R'},
 		{"list-rules",    no_argument,       0,  1 },
 		{"pattern",       required_argument, 0, 'P'},
-		{"list-patterns", no_argument,       0,  2 },
+		{"pattern-file",  required_argument, 0,  2 },
+		{"list-patterns", no_argument,       0,  3 },
 		{0,               0,                 0,  0 }
 	};
 
@@ -327,10 +339,15 @@ config_apply_args (Config *cfg, int argc, char **argv)
 					}
 				case 'P':
 					{
-						cfg->pattern_file = optarg;
+						cfg->pattern = optarg;
 						break;
 					}
 				case 2:
+					{
+						cfg->pattern_file = optarg;
+						break;
+					}
+				case 3:
 					{
 						config_print_patterns (stdout);
 						exit (EXIT_SUCCESS);

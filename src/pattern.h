@@ -25,6 +25,7 @@ typedef struct
 
 extern const PatternDef pattern_defs[];
 
-Pattern * pattern_new      (const char *pattern_str);
-int       pattern_is_valid (const char *pattern_str);
-void      pattern_free     (Pattern *pattern);
+Pattern * pattern_new            (const char *pattern_str);
+int       pattern_file_is_valid  (const char *pattern_file);
+int       pattern_alias_is_valid (const char *pattern_alias);
+void      pattern_free           (Pattern *pattern);
