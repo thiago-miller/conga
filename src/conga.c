@@ -249,6 +249,16 @@ conga_input_key (Conga *game, int key)
 				game->status.redraw = 1;
 				break;
 			}
+		case '+':
+			{
+				game->status.redraw = render_scale (game->render, game->grid_cur, -1);
+				break;
+			}
+		case '-':
+			{
+				game->status.redraw = render_scale (game->render, game->grid_cur, +1);
+				break;
+			}
 		}
 }
 
