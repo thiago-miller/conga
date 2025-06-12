@@ -18,11 +18,16 @@
 #define WIN_START_ROW 1
 #define WIN_START_COL 1
 
+#define COLOR_LIGHT_GRAY 8
+#define COLOR_DARK_GRAY  9
+
 #define COLOR_PAIR_OUTER_BOX   1
 #define COLOR_PAIR_INNER_BOX   2
-#define COLOR_PAIR_CELL_ALIVE  1
-#define COLOR_PAIR_CELL_DEAD   2
 #define COLOR_PAIR_STATUS_BOX  3
+#define COLOR_PAIR_CELL_00     4
+#define COLOR_PAIR_CELL_25     5
+#define COLOR_PAIR_CELL_50     6
+#define COLOR_PAIR_CELL_75     7
 
 struct _Render
 {
@@ -193,11 +198,18 @@ static void
 render_init_colors (void)
 {
 	start_color ();
-	init_color (COLOR_RED, 700, 0, 0);
 
-	init_pair (1, COLOR_WHITE, COLOR_BLACK);
-	init_pair (2, COLOR_BLACK, COLOR_WHITE);
-	init_pair (3, COLOR_WHITE, COLOR_RED);
+	init_color (COLOR_RED,        700, 0,   0);
+	init_color (COLOR_LIGHT_GRAY, 500, 500, 500);
+	init_color (COLOR_DARK_GRAY,  250, 250, 250);
+
+	init_pair (COLOR_PAIR_OUTER_BOX,  COLOR_WHITE, COLOR_BLACK);
+	init_pair (COLOR_PAIR_INNER_BOX,  COLOR_BLACK, COLOR_WHITE);
+	init_pair (COLOR_PAIR_STATUS_BOX, COLOR_WHITE, COLOR_RED);
+	init_pair (COLOR_PAIR_CELL_00,    COLOR_BLACK, COLOR_WHITE);
+	init_pair (COLOR_PAIR_CELL_25,    COLOR_BLACK, COLOR_LIGHT_GRAY);
+	init_pair (COLOR_PAIR_CELL_50,    COLOR_BLACK, COLOR_DARK_GRAY);
+	init_pair (COLOR_PAIR_CELL_75,    COLOR_BLACK, COLOR_BLACK);
 }
 
 Render *
@@ -262,9 +274,9 @@ render_update_grid (Render *render, const Grid *grid)
 					for (int y = 0; y < fac && y + view_col_shift < grid->cols; y++)
 						acm += GRID_GET (grid, x + view_row_shift, y + view_col_shift);
 
-				int cell = acm > 0;
+				int color_pair = COLOR_PAIR_CELL_00 + ceil (acm * 4.0 / fac);
 
-				wattron  (render->inner_box, COLOR_PAIR (-1 * cell + 2));
+				wattron  (render->inner_box, COLOR_PAIR (color_pair));
 
 				mvwaddch (render->inner_box,
 						row + WIN_START_ROW,
@@ -276,7 +288,7 @@ render_update_grid (Render *render, const Grid *grid)
 						col * 2 + WIN_START_COL + 1,
 						' ');
 
-				wattroff (render->inner_box, COLOR_PAIR (-1 * cell + 2));
+				wattroff (render->inner_box, COLOR_PAIR (color_pair));
 			}
 }
 
