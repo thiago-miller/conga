@@ -1,7 +1,7 @@
 CC             = gcc
 SHELL          = bash -euo pipefail
 CFLAGS         = -Wall -O2 $$(pkg-config --cflags ncurses) -DHAVE_VERSION_H -DHAVE_PATTERN_DEFS_H -I$(BUILD_SRC_DIR)
-LDLIBS         = $$(pkg-config --libs ncurses)
+LDLIBS         = $$(pkg-config --libs ncurses) -lm
 LDFLAGS_TEST   = -Wl,--wrap=malloc -Wl,--wrap=calloc
 LDLIBS_TEST    = -lcheck
 SRC_DIR        = src
