@@ -2,7 +2,9 @@
 
 #include <ncurses.h>
 #include <assert.h>
+#include <math.h>
 #include "wrapper.h"
+#include "utils.h"
 
 #define WIN_FRAME_ROWS 2
 #define WIN_FRAME_COLS 2
@@ -25,10 +27,16 @@
 struct _Render
 {
 	const char *title;
+
 	int         view_row, view_col;
 	int         win_rows, win_cols;
 	int         cur_rows, cur_cols;
-	int         scroll;
+
+	int         scale;
+
+	int         update_scroll;
+	int         clear_inner_box;
+
 	WINDOW     *outer_box;
 	WINDOW     *inner_box;
 	WINDOW     *status_box;
@@ -44,12 +52,15 @@ render_scroll (Render *render, const Grid *grid, int dx, int dy)
 
 	int view_row = render->view_row;
 	int view_col = render->view_col;
-	int max_x    = grid->rows - render->cur_rows;
-	int max_y    = grid->cols - render->cur_cols;
+
+	int fac   = exp2 (render->scale);
+	int max_x = fmax (0, (grid->rows / fac - render->cur_rows) * fac);
+	int max_y = fmax (0, (grid->cols / fac - render->cur_cols) * fac);
+
 	int rc = 0;
 
-	view_row += dx;
-	view_col += dy;
+	view_row += dx * fac;
+	view_col += dy * fac;
 
 	if (view_row < 0)
 		view_row = 0;
@@ -66,6 +77,34 @@ render_scroll (Render *render, const Grid *grid, int dx, int dy)
 		{
 			render->view_row = view_row;
 			render->view_col = view_col;
+			rc = 1;
+		}
+
+	return rc;
+}
+
+int
+render_scale (Render *render, const Grid *grid, int dx)
+{
+	assert (render != NULL);
+	assert (grid != NULL);
+
+	int max_scale = log2 (fmin (grid->rows, grid->cols));
+	int scale = render->scale;
+	int rc = 0;
+
+	scale += dx;
+
+	if (scale < 0)
+		scale = 0;
+	else if (scale > max_scale)
+		scale = max_scale;
+
+	if (render->scale != scale)
+		{
+			render->scale = scale;
+			render->clear_inner_box = 1;
+			render->update_scroll = 1;
 			rc = 1;
 		}
 
@@ -104,10 +143,14 @@ render_resize_viewport (Render *render)
 	int total_cols = WIN_TOTAL_COLS (render->win_cols);
 
 	// Set inner_box limits
-	if (total_rows < WIN_FRAME_ROWS + 1 || total_rows > inner_rows)
+	if (total_rows < WIN_TOTAL_ROWS (1))
+		total_rows = WIN_TOTAL_ROWS (1);
+	else if (total_rows > inner_rows)
 		total_rows = inner_rows;
 
-	if (total_cols < WIN_FRAME_COLS + 1 || total_cols > inner_cols)
+	if (total_cols < WIN_TOTAL_COLS (1))
+		total_cols = WIN_TOTAL_COLS (1);
+	else if (total_cols > inner_cols)
 		total_cols = inner_cols;
 
 	render->cur_rows = WIN_GRID_ROWS (total_rows);
@@ -130,7 +173,7 @@ render_resize_viewport (Render *render)
 
 	// Scroll next render_update_grid in order
 	// to avoid view_row/view_col out of range
-	render->scroll = 1;
+	render->update_scroll = 1;
 }
 
 void
@@ -204,22 +247,33 @@ render_free (Render *render)
 static inline void
 render_update_grid (Render *render, const Grid *grid)
 {
-	int cell = 0;
+	int fac = exp2 (render->scale);
+	int max_i = fmin (render->cur_rows * fac, grid->rows);
+	int max_j = fmin (render->cur_cols * fac, grid->cols);
 
-	for (int i = 0; i < render->cur_rows; i++)
-		for (int j = 0; j < render->cur_cols; j++)
+	for (int i = 0, row = 0; i < max_i; i += fac, row++)
+		for (int j = 0, col = 0; j < max_j; j += fac, col++)
 			{
-				cell = GRID_GET (grid, i + render->view_row, j + render->view_col);
+				int view_row_shift = i + render->view_row;
+				int view_col_shift = j + render->view_col;
+				int acm = 0;
+
+				for (int x = 0; x < fac && x + view_row_shift < grid->rows; x++)
+					for (int y = 0; y < fac && y + view_col_shift < grid->cols; y++)
+						acm += GRID_GET (grid, x + view_row_shift, y + view_col_shift);
+
+				int cell = acm > 0;
+
 				wattron  (render->inner_box, COLOR_PAIR (-1 * cell + 2));
 
 				mvwaddch (render->inner_box,
-						i + WIN_START_ROW,
-						j * 2 + WIN_START_COL,
+						row + WIN_START_ROW,
+						col * 2 + WIN_START_COL,
 						' ');
 
 				mvwaddch (render->inner_box,
-						i + WIN_START_ROW,
-						j * 2 + WIN_START_COL + 1,
+						row + WIN_START_ROW,
+						col * 2 + WIN_START_COL + 1,
 						' ');
 
 				wattroff (render->inner_box, COLOR_PAIR (-1 * cell + 2));
@@ -235,9 +289,11 @@ render_update_status (Render *render, const Grid *grid,
 	for (int i = 0; i < WIN_TOTAL_COLS (render->cur_cols); i++)
 		waddch (render->status_box, ' ');
 
+	int fac = exp2 (render->scale);
+
 	wmove (render->status_box, 0, 0);
 	wprintw (render->status_box, "[%d,%d] ",
-			render->view_row, render->view_col);
+			render->view_row/fac, render->view_col/fac);
 
 	wattron (render->status_box, A_BOLD);
 	wprintw (render->status_box, "View:");
@@ -268,6 +324,11 @@ render_update_status (Render *render, const Grid *grid,
 	wattroff (render->status_box, A_BOLD);
 	wprintw (render->status_box, "%.2f ",
 			stat->rate);
+
+	wattron (render->status_box, A_BOLD);
+	wprintw (render->status_box, "Scale:");
+	wattroff (render->status_box, A_BOLD);
+	wprintw (render->status_box, "1:%d ", fac);
 }
 
 void
@@ -276,10 +337,16 @@ render_draw (Render *render, const Grid *grid, const RenderStat *stat)
 	assert (render != NULL);
 	assert (grid != NULL);
 
-	if (render->scroll)
+	if (render->update_scroll)
 		{
 			render_scroll (render, grid, 0, 0);
-			render->scroll = 0;
+			render->update_scroll = 0;
+		}
+
+	if (render->clear_inner_box)
+		{
+			wclear (render->inner_box);
+			render->clear_inner_box = 0;
 		}
 
 	render_update_grid   (render, grid);
