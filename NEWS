@@ -1,3 +1,16 @@
+Version 0.7.0
+
+* Switch to the ncurses library to improve graphics
+  rendering.
+
+* Add scrolling with arrow keys and vim-like
+  shortcuts.
+
+* Add acceleration and deceleration of cell generation
+  delay on demand.
+
+* Add zoom-in and zoom-out.
+
 Version 0.6.0
 
 * Improve rules and patterns parsing using regex.
