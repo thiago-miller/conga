@@ -40,7 +40,7 @@ struct _Render
 	int         scale;
 
 	int         update_scroll;
-	int         clear_inner_box;
+	int         clear_grid;
 
 	WINDOW     *outer_box;
 	WINDOW     *inner_box;
@@ -108,7 +108,7 @@ render_scale (Render *render, const Grid *grid, int dx)
 	if (render->scale != scale)
 		{
 			render->scale = scale;
-			render->clear_inner_box = 1;
+			render->clear_grid = 1;
 			render->update_scroll = 1;
 			rc = 1;
 		}
@@ -172,9 +172,11 @@ render_resize_viewport (Render *render)
 	mvwin (render->inner_box, inner_starty, inner_startx);
 
 	// Draw status_box
-	wresize (render->status_box, 1, total_cols);
+	wresize (render->status_box,
+			1, term_cols - 2 * WIN_FRAME_COLS);
 	wclear (render->status_box);
-	mvwin (render->status_box, term_rows - WIN_FRAME_ROWS, WIN_FRAME_COLS);
+	mvwin (render->status_box,
+			term_rows - WIN_FRAME_ROWS, WIN_FRAME_COLS);
 
 	// Scroll next render_update_grid in order
 	// to avoid view_row/view_col out of range
@@ -254,6 +256,13 @@ render_free (Render *render)
 
 	xfree ((char *) render->title);
 	xfree (render);
+}
+
+static inline void
+render_clear_grid (Render *render)
+{
+	wclear (render->inner_box);
+	box (render->inner_box, 0, 0);
 }
 
 static inline void
@@ -355,10 +364,10 @@ render_draw (Render *render, const Grid *grid, const RenderStat *stat)
 			render->update_scroll = 0;
 		}
 
-	if (render->clear_inner_box)
+	if (render->clear_grid)
 		{
-			wclear (render->inner_box);
-			render->clear_inner_box = 0;
+			render_clear_grid (render);
+			render->clear_grid = 0;
 		}
 
 	render_update_grid   (render, grid);
