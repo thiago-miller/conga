@@ -133,7 +133,10 @@ event_queue_wait_for_event (EventQueue *queue, Event *event)
 			usleep (queue->tick);
 
 			if (quit)
-				event_queue_push (queue, EVENT_QUIT, -1);
+				{
+					event_queue_push (queue, EVENT_QUIT, -1);
+					quit = 0;
+				}
 
 			if (redraw)
 				{
@@ -176,8 +179,7 @@ event_queue_add_delay (EventQueue *queue, int delay)
 
 	if (queue->delay < EVENT_DELAY_MIN)
 		queue->delay = EVENT_DELAY_MIN;
-
-	if (queue->delay > EVENT_DELAY_MAX)
+	else if (queue->delay > EVENT_DELAY_MAX)
 		queue->delay = EVENT_DELAY_MAX;
 
 	return queue->delay;
