@@ -6,21 +6,14 @@
 #include "wrapper.h"
 #include "utils.h"
 
-#define WIN_FRAME_ROWS 2
-#define WIN_FRAME_COLS 2
-
-#define WIN_TOTAL_ROWS(rows) ((rows) + WIN_FRAME_ROWS)
-#define WIN_TOTAL_COLS(cols) ((cols) * 2 + WIN_FRAME_COLS)
-
-#define WIN_GRID_ROWS(rows) ((rows) - WIN_FRAME_ROWS)
-#define WIN_GRID_COLS(cols) (((cols) - WIN_FRAME_COLS) / 2)
-
-#define WIN_START_ROW 1
-#define WIN_START_COL 1
-
-#define COLOR_LIGHT_GRAY 8
-#define COLOR_DARK_GRAY  9
-
+#define WIN_FRAME_ROWS         2
+#define WIN_FRAME_COLS         3
+#define WIN_START_ROW          1
+#define WIN_START_COL          1
+#define HELP_BOX_COLS          33
+#define STATUS_BOX_MIN_COLS    35
+#define COLOR_LIGHT_GRAY       8
+#define COLOR_DARK_GRAY        9
 #define COLOR_PAIR_OUTER_BOX   1
 #define COLOR_PAIR_INNER_BOX   2
 #define COLOR_PAIR_STATUS_BOX  3
@@ -28,6 +21,12 @@
 #define COLOR_PAIR_CELL_25     5
 #define COLOR_PAIR_CELL_50     6
 #define COLOR_PAIR_CELL_75     7
+
+#define WIN_TOTAL_ROWS(rows) ((rows) + WIN_FRAME_ROWS)
+#define WIN_TOTAL_COLS(cols) ((cols) * 2 + WIN_FRAME_COLS)
+
+#define WIN_GRID_ROWS(rows) ((rows) - WIN_FRAME_ROWS)
+#define WIN_GRID_COLS(cols) (((cols) - WIN_FRAME_COLS) / 2)
 
 struct _Render
 {
@@ -45,6 +44,7 @@ struct _Render
 	WINDOW     *outer_box;
 	WINDOW     *inner_box;
 	WINDOW     *status_box;
+	WINDOW     *help_box;
 };
 
 int
@@ -141,9 +141,12 @@ render_resize_viewport (Render *render)
 	wattroff (render->outer_box, A_BOLD);
 	waddch (render->outer_box, ACS_ULCORNER);
 
+	// Get help box cols wih box
+	int help_cols = WIN_FRAME_COLS * 2 + HELP_BOX_COLS;
+
 	// Get inner_rows dimensions
-	int inner_rows = term_rows - WIN_FRAME_ROWS * 2 - 1;
-	int inner_cols = term_cols - WIN_FRAME_COLS * 20;
+	int inner_rows = term_rows - (WIN_FRAME_ROWS * 2 + 1);
+	int inner_cols = term_cols - (WIN_FRAME_COLS * 2 + 2 + help_cols);
 	int total_rows = WIN_TOTAL_ROWS (render->win_rows);
 	int total_cols = WIN_TOTAL_COLS (render->win_cols);
 
@@ -161,8 +164,8 @@ render_resize_viewport (Render *render)
 	render->cur_rows = WIN_GRID_ROWS (total_rows);
 	render->cur_cols = WIN_GRID_COLS (total_cols);
 
-	// Set inner_box position at the center left
-	int inner_startx = WIN_FRAME_COLS;
+	// Set inner_box position at the center
+	int inner_startx = (term_cols - (total_cols + help_cols + 1)) / 2;
 	int inner_starty = (term_rows - total_rows) / 2;
 
 	// Draw inner_box
@@ -170,6 +173,12 @@ render_resize_viewport (Render *render)
 	wclear (render->inner_box);
 	box (render->inner_box, 0, 0);
 	mvwin (render->inner_box, inner_starty, inner_startx);
+
+	// Draw help_box
+	wresize (render->help_box, term_rows - (WIN_FRAME_ROWS * 2 + 1), help_cols);
+	wclear (render->help_box);
+	box (render->help_box, 0, 0);
+	mvwin (render->help_box, WIN_FRAME_ROWS, term_cols - (help_cols + WIN_FRAME_COLS));
 
 	// Draw status_box
 	wresize (render->status_box,
@@ -228,6 +237,7 @@ render_new (const char *title, int win_rows, int win_cols)
 		.outer_box  = newwin (0, 0, 0, 0),
 		.inner_box  = newwin (0, 0, 0, 0),
 		.status_box = newwin (0, 0, 0, 0),
+		.help_box   = newwin (0, 0, 0, 0),
 		.win_rows   = win_rows,
 		.win_cols   = win_cols
 	};
@@ -236,6 +246,8 @@ render_new (const char *title, int win_rows, int win_cols)
 			COLOR_PAIR (COLOR_PAIR_OUTER_BOX));
 	wbkgd (render->inner_box,
 			COLOR_PAIR (COLOR_PAIR_INNER_BOX));
+	wbkgd (render->help_box,
+			COLOR_PAIR (COLOR_PAIR_OUTER_BOX));
 	wbkgd (render->status_box,
 			COLOR_PAIR (COLOR_PAIR_STATUS_BOX));
 
@@ -252,6 +264,7 @@ render_free (Render *render)
 
 	delwin (render->outer_box);
 	delwin (render->inner_box);
+	delwin (render->help_box);
 	delwin (render->status_box);
 
 	xfree ((char *) render->title);
@@ -305,28 +318,32 @@ static inline void
 render_update_status (Render *render, const Grid *grid,
 		const RenderStat *stat)
 {
-	// Clean windows
-	wmove(render->status_box, 0, 0);
-	for (int i = 0; i < WIN_TOTAL_COLS (render->cur_cols); i++)
-		waddch (render->status_box, ' ');
-
+	int cols = WIN_TOTAL_COLS (render->cur_cols);
 	int fac = exp2 (render->scale);
+
+	// Clean windows
+	wmove (render->status_box, 0, 0);
+	for (int i = 0; i < cols; i++)
+		waddch (render->status_box, ' ');
 
 	wmove (render->status_box, 0, 0);
 	wprintw (render->status_box, "[%d,%d] ",
 			render->view_row/fac, render->view_col/fac);
 
-	wattron (render->status_box, A_BOLD);
-	wprintw (render->status_box, "View:");
-	wattroff (render->status_box, A_BOLD);
-	wprintw (render->status_box, "%dx%d ",
-			render->cur_rows, render->cur_cols);
+	if (cols > STATUS_BOX_MIN_COLS)
+		{
+			wattron (render->status_box, A_BOLD);
+			wprintw (render->status_box, "View:");
+			wattroff (render->status_box, A_BOLD);
+			wprintw (render->status_box, "%dx%d ",
+					render->cur_rows, render->cur_cols);
 
-	wattron (render->status_box, A_BOLD);
-	wprintw (render->status_box, "Grid:");
-	wattroff (render->status_box, A_BOLD);
-	wprintw (render->status_box, "%dx%d ",
-			grid->rows, grid->cols);
+			wattron (render->status_box, A_BOLD);
+			wprintw (render->status_box, "Grid:");
+			wattroff (render->status_box, A_BOLD);
+			wprintw (render->status_box, "%dx%d ",
+					grid->rows, grid->cols);
+		}
 
 	wattron (render->status_box, A_BOLD);
 	wprintw (render->status_box, "Alive:");
@@ -352,6 +369,52 @@ render_update_status (Render *render, const Grid *grid,
 	wprintw (render->status_box, "1:%d ", fac);
 }
 
+static inline void
+render_update_help_box (Render * render)
+{
+	// Título do help box
+	wattron(render->help_box, A_BOLD | COLOR_PAIR(4));
+	mvwprintw(render->help_box, 0, 2, " Help ");
+	wattroff(render->help_box, A_BOLD | COLOR_PAIR(4));
+
+	wattron(render->help_box, COLOR_PAIR(2));
+
+	// Conteúdo
+	mvwprintw(render->help_box, 1, 1, " Arrows: Move view");
+	mvwprintw(render->help_box, 2, 1, " Space : Pause/Run");
+	mvwprintw(render->help_box, 3, 1, " Q     : Quit");
+
+	// Mostrando setas de forma gráfica (usando ACS ou unicode)
+	// Exemplo: usando ACS_CKBOARD para seta vertical
+	mvwprintw(render->help_box, 5, 1, " Arrows:");
+	mvwaddch(render->help_box, 6, 4, ACS_UARROW); // ↑
+	mvwprintw(render->help_box, 6, 6, " Up");
+
+	mvwaddch(render->help_box, 7, 4, ACS_DARROW); // ↓
+	mvwprintw(render->help_box, 7, 6, " Down");
+
+	mvwaddch(render->help_box, 8, 4, ACS_LARROW); // ←
+	mvwprintw(render->help_box, 8, 6, " Left");
+
+	mvwaddch(render->help_box, 9, 4, ACS_RARROW); // →
+	mvwprintw(render->help_box, 9, 6, " Right");
+
+	// Status do jogo (running / paused) – Exemplo dinâmico
+	// Suponha que você tenha uma variável global "paused"
+	mvwprintw(render->help_box, 11, 1, " State: ");
+	if (0) {
+		wattron(render->help_box, A_BOLD | COLOR_PAIR(3)); // Vermelho para pausado
+		wprintw(render->help_box, "Paused ");
+		wattroff(render->help_box, A_BOLD | COLOR_PAIR(3));
+	} else {
+		wattron(render->help_box, A_BOLD | COLOR_PAIR(1)); // Normal (running)
+		wprintw(render->help_box, "Running");
+		wattroff(render->help_box, A_BOLD | COLOR_PAIR(1));
+	}
+
+	wattroff(render->help_box, COLOR_PAIR(2));
+}
+
 void
 render_draw (Render *render, const Grid *grid, const RenderStat *stat)
 {
@@ -370,11 +433,13 @@ render_draw (Render *render, const Grid *grid, const RenderStat *stat)
 			render->clear_grid = 0;
 		}
 
-	render_update_grid   (render, grid);
-	render_update_status (render, grid, stat);
+	render_update_grid     (render, grid);
+	render_update_status   (render, grid, stat);
+	render_update_help_box (render);
 
 	refresh  ();
 	wrefresh (render->outer_box);
 	wrefresh (render->inner_box);
+	wrefresh (render->help_box);
 	wrefresh (render->status_box);
 }
